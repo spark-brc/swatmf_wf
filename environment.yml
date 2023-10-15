@@ -1,4 +1,4 @@
-name: swatmf_test3
+name: swatmf_tut
 channels:
   - conda-forge
 dependencies:
