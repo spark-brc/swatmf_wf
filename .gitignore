@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+.git
+# Sphinx documentation
+docs/_build/
+docs/_static/
+docs/templates/
+
+.ipynb_checkpoints
+.pytest_cache
+.vscode
+swatmf.egg-info
+build
+dist
+.trash/
+*.code-workspace
+
+# SWAT-MODFLOW outputs
+SWAT-MODFLOW/fort.50
+SWAT-MODFLOW/fort.8
+SWAT-MODFLOW/fort.5051
+SWAT-MODFLOW/swatmf_out_SWAT_recharge_yearly
+SWAT-MODFLOW/swatmf_out_MF_recharge_monthly
+SWAT-MODFLOW/swatmf_out_MF_head_monthly
+SWAT-MODFLOW/swatmf_out_MF_head_yearly
+SWAT-MODFLOW/mff_test.list
+SWAT-MODFLOW/output.hru
+SWAT-MODFLOW/output.mgt
