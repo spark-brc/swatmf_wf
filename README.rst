@@ -28,8 +28,8 @@ You essentially have 2 options:
 Easy way
 --------
 
-- `Download the data zip file <https://github.com/spark-brc/jy-swatmf/archive/refs/heads/main.zip>`_
-- Unzip `jy-swatmf-main.zip` to a prefered location.
+- `Download the data zip file <https://github.com/spark-brc/swatmf_tut/archive/refs/heads/main.zip>`_
+- Unzip `swatmf_tut-main.zip` to a prefered location.
 
 
 Hard way (Dev mode)
@@ -48,7 +48,7 @@ Hard way (Dev mode)
 
 .. code-block:: bash
 
-   git clone https://github.com/spark-brc/jy-swatmf.git
+   git clone https://github.com/spark-brc/swatmf_tutorials.git
 
 
 ============
@@ -67,28 +67,19 @@ To execute jupyter notebook, we need the Miniconda environment.
 -----------------------------------------
 
 - After installation, go to the START menu and select "Miniconda Prompt" to open a DOS box.
-- Type the following command:
-
-
-
-.. code-block:: bash
-
-   conda install -c conda-forge mamba
-
-
 - Using the `cd <https://www.computerhope.com/issues/chusedos.htm>`_ command in the Miniconda DOS box, navigate to the location where you have `environment.yml` the file and type: 
 
 .. code-block:: bash
 
-   mamba env create -f environment.yml
+   conda env create -f environment.yml
 
 and hit ENTER.
 
-After your virtual environment setup is complete, change the environment to `jy-swatmf`:  
+After your virtual environment setup is complete, change the environment to `swatmf_tut`:  
 
 .. code-block:: bash
 
-   conda activate jy-swatmf
+   conda activate swatmf_tut
 
 - Launch jupyter notebook 
 
