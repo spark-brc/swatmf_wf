@@ -14,7 +14,7 @@ with open("README.rst", "r") as fd:
     long_desc = fd.read()
 
 
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 DESCRIPTION = 'swatmf is a set of python modules for SWAT-MODFLOW model evaluation and parameter estimation.'
 # LONG_DESCRIPTION = 'A package that allows to work with SWAT-MODFLOW model'
 
@@ -41,9 +41,9 @@ setup(
         'opt_files': ['*'],
     },
     packages=find_packages(),
-    # install_requires=[
-    #     'pandas', 'numpy', 'pyemu', 'flopy', 'scipy', 'matplotlib', 'openpyxl',
-    #     'hydroeval', 'tqdm', 'termcolor', 'pyshp'],
+    install_requires=[
+        'pandas', 'numpy', 'pyemu', 'flopy', 'scipy', 'matplotlib', 'openpyxl',
+        'hydroeval', 'tqdm', 'termcolor', 'pyshp'],
     keywords=['python', 'SWAT-MODFLOW', 'PEST'],
     classifiers=[
         "Development Status :: 4 - Beta",
