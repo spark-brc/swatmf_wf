@@ -28,7 +28,7 @@ You essentially have 2 options:
 Easy way
 --------
 
-- `Download the data zip file <https://github.com/spark-brc/swatmf_tut/archive/refs/heads/main.zip>`_
+- `Download the data zip file <https://github.com/spark-brc/swatmf_tutorials/archive/refs/heads/main.zip>`_
 - Unzip `swatmf_tut-main.zip` to a prefered location.
 
 
