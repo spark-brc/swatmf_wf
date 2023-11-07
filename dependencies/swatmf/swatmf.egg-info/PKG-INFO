@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: swatmf
-Version: 0.3.0
+Version: 0.3.1
 Summary: swatmf is a set of python modules for SWAT-MODFLOW model evaluation and parameter estimation.
 Download-URL: https://pypi.org/project/swatmf
 Author: Seonggyu Park
@@ -18,6 +18,17 @@ Classifier: Programming Language :: Python :: 3.10
 Classifier: Operating System :: Microsoft :: Windows
 Classifier: License :: OSI Approved :: BSD License
 Description-Content-Type: text/x-rst
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: pyemu
+Requires-Dist: flopy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: openpyxl
+Requires-Dist: hydroeval
+Requires-Dist: tqdm
+Requires-Dist: termcolor
+Requires-Dist: pyshp
 
 ======
 swatmf
@@ -129,9 +140,10 @@ A browser window with a Jupyter notebook instance should open. Yay!
 
    from swatmf import swatmf_pst_utils
 
-   >>> wd = "User-SWAT-MODFLOW working directory"
-   >>> swat_wd = "User-SWAT working directory"
-   >>> swatmf_pst_utils.init_setup(wd, swat_wd)
+   >>> prj_dir = "project directory"
+   >>> swatmfwd = "SWAT-MODFLOW model"
+   >>> swatwd = "SWAT model"
+   >>> swatmf_pst_utils.init_setup(prj_dir, swatmfwd, swatwd))
 
    Creating 'backup' folder ... passed
    Creating 'echo' folder ... passed
