@@ -5,7 +5,7 @@ General Input/Output section (file.cio):
 
 General Information/Watershed Configuration:
 fig.fig
-               5    | NBYR : Number of years simulated
+               1    | NBYR : Number of years simulated
             1985    | IYR : Beginning year of simulation
                1    | IDAF : Beginning julian day of simulation
              365    | IDAL : Ending julian day of simulation
