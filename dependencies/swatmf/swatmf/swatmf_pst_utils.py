@@ -71,7 +71,6 @@ def create_swatmf_con(
     # if depth_to_water is None:
     #     depth_to_water = 'n'
 
-
     col01 = [
         'prj_dir',
         'swatmf_model', 'sim_start', 'warm-up', 'cal_start', 'cal_end',
@@ -79,6 +78,7 @@ def create_swatmf_con(
         'riv_parm', 'baseflow',
         'time_step',
         'pp_included',
+        
         ]
     col02 = [
         prj_dir,
