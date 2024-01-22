@@ -6,6 +6,8 @@ import os
 from hydroeval import evaluator, nse, rmse, pbias
 import numpy as np
 import math
+import matplotlib.dates as mdates
+from swatmf.handler import SWATMFout
 
 
 def get_all_scenario_lists(wd):
@@ -29,7 +31,7 @@ def all_strs(wd, sub_number, start_date, obd_nam, time_step=None):
         print("Folder changed to {}".format(p))
         df = pd.read_csv(
                     os.path.join("output.rch"),
-                    delim_whitespace=True,
+                    sep=r'\s+',
                     skiprows=9,
                     usecols=[1, 3, 6],
                     names=["date", "filter", "str_sim"],
@@ -62,7 +64,7 @@ def all_seds(wd, sub_number, start_date, obd_nam, time_step=None):
         print("Folder changed to {}".format(p))
         df = pd.read_csv(
                     os.path.join("output.rch"),
-                    delim_whitespace=True,
+                    sep=r'\s+',
                     skiprows=9,
                     usecols=[1, 3, 10],
                     names=["date", "filter", "str_sim"],
@@ -90,7 +92,7 @@ def str_df(start_date, sub_number, time_step=None):
         strobd_file = "swat_rch_mon.obd."
     df = pd.read_csv(
                 os.path.join("output.rch"),
-                delim_whitespace=True,
+                sep=r'\s+',
                 skiprows=9,
                 usecols=[1, 3, 6],
                 names=["date", "filter", "str_sim"],
@@ -114,7 +116,7 @@ def apex_str_df(rch_file, start_date, rch_num, obd_nam, time_step=None):
         time_step = "M"
         strobd_file = "swat_rch_mon.obd."
     output_rch = pd.read_csv(
-                        rch_file, delim_whitespace=True, skiprows=9,
+                        rch_file, sep=r'\s+', skiprows=9,
                         usecols=[0, 1, 8], names=["idx", "sub", "simulated"], index_col=0
                         )
     df = output_rch.loc["REACH"]
@@ -375,7 +377,7 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
 
     mf_obs = pd.read_csv(
                         "modflow.obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 2,
                         usecols = [3, 4],
                         index_col = 0,
@@ -390,7 +392,7 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
     grid_id_lst = mf_obs.index.astype(str).values.tolist()
     output_wt = pd.read_csv(
                         "swatmf_out_MF_obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 1,
                         names = grid_id_lst,)
     output_wt = output_wt[str(grid_id)] - float(mf_obs.loc[int(grid_id)])
@@ -433,7 +435,7 @@ def wt_df(start_date, grid_id, obd_nam, time_step=None, prep_sub=None):
 
     mf_obs = pd.read_csv(
                         "MODFLOW/modflow.obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 2,
                         usecols = [3, 4],
                         index_col = 0,
@@ -450,7 +452,7 @@ def wt_df(start_date, grid_id, obd_nam, time_step=None, prep_sub=None):
     grid_id_lst = mf_obs.index.astype(str).values.tolist()
     output_wt = pd.read_csv(
                         "MODFLOW/apexmf_out_MF_obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 1,
                         names = grid_id_lst,)
     output_wt = output_wt[str(grid_id)] - float(mf_obs.loc[int(grid_id)])
@@ -562,7 +564,7 @@ def wt_tot_df(sim_start, df_start, df_end, grid_ids, obd_nams, time_step=None):
     # read obs and obd files to get grid ids, elev, and observed values
     mf_obs = pd.read_csv(
                         "MODFLOW/modflow.obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 2,
                         usecols = [3, 4],
                         index_col = 0,
@@ -579,7 +581,7 @@ def wt_tot_df(sim_start, df_start, df_end, grid_ids, obd_nams, time_step=None):
     # read simulated water elevation
     output_wt = pd.read_csv(
                         "MODFLOW/apexmf_out_MF_obs",
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows = 1,
                         names = grid_id_lst,)
     # append data to big dataframe
@@ -842,3 +844,150 @@ def plot_prior_posterior_par_hist(prior_df, post_df, sel_pars, width=7, height=5
             ax.set_yticks([])
     plt.xlabel("Parameter range")
     plt.show()
+
+
+
+
+# scratches for QSWATMOD
+# read data first
+def read_stf_obd(wd, obd_file):
+    return pd.read_csv(
+        os.path.join(wd, obd_file),
+        index_col=0,
+        header=0,
+        parse_dates=True,
+        na_values=[-999, ""]
+    )
+
+def read_output_rch_data(wd, colNum=6):
+    return pd.read_csv(
+        os.path.join(wd, "output.rch"),
+        sep=r'\s+',
+        skiprows=9,
+        usecols=[1, 3, colNum],
+        names=["date", "filter", "stf_sim"],
+        index_col=0
+    )
+
+def update_index(df, startDate, ts):
+    if ts.lower() == "day":
+        df.index = pd.date_range(startDate, periods=len(df.stf_sim))
+    elif ts.lower() == "month":
+        df = df[df['filter'] < 13]
+        df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
+    else:
+        df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
+    return df
+
+def plot_simulated(ax, wd, subnum, startDate, ts):
+    output_rch = read_output_rch_data(wd)
+    df = output_rch.loc[subnum]
+    try:
+        df = update_index(df, startDate, ts)
+        ax.plot(df.index.values, df.stf_sim.values, c='g', lw=1, label="Simulated")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    except Exception as e:
+        handle_exception(ax, str(e))
+
+def plot_observed_data(ax, df3, obd_col):
+    size = 10
+    ax.scatter(
+        df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
+        label="Observed", zorder=3
+    )
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    if len(df3[obd_col]) > 1:
+        calculate_metrics(ax, df3, obd_col)
+    else:
+        display_no_data_message(ax)
+
+def plot_stf_obd(ax, wd, obd_file, startDate, subnum, ts, obd_col):
+    strObd = read_stf_obd(wd, obd_file)
+    output_rch = read_output_rch_data(wd)
+    # try:
+    df = output_rch.loc[subnum]
+    df = update_index(df, startDate, ts)
+    ax.plot(df.index.values, df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
+    df2 = pd.concat([df, strObd[obd_col]], axis=1)
+    df3 = df2.dropna().resample('M').mean()
+    plot_observed_data(ax, df3, obd_col)
+    # except Exception as e:
+    #     handle_exception(ax, str(e))
+
+
+# NOTE: metrics =======================================================================================
+def calculate_metrics(ax, df3, obd_col):
+    r_squared = ((sum((df3[obd_col] - df3[obd_col].mean()) * (df3.stf_sim - df3.stf_sim.mean())))**2) / (
+            (sum((df3[obd_col] - df3[obd_col].mean())**2) * (sum((df3.stf_sim - df3.stf_sim.mean())**2)))
+    )
+    dNS = 1 - (sum((df3.stf_sim - df3[obd_col])**2) / sum((df3[obd_col] - (df3[obd_col]).mean())**2))
+    PBIAS = 100 * (sum(df3[obd_col] - df3.stf_sim) / sum(df3[obd_col]))
+    display_metrics(ax, dNS, r_squared, PBIAS)
+
+def display_metrics(ax, dNS, r_squared, PBIAS):
+    ax.text(
+        .01, 0.95, f'Nash-Sutcliffe: {dNS:.4f}',
+        fontsize=8, horizontalalignment='left', color='limegreen', transform=ax.transAxes
+    )
+    ax.text(
+        .01, 0.90, f'$R^2$: {r_squared:.4f}',
+        fontsize=8, horizontalalignment='left', color='limegreen', transform=ax.transAxes
+    )
+    ax.text(
+        .99, 0.95, f'PBIAS: {PBIAS:.4f}',
+        fontsize=8, horizontalalignment='right', color='limegreen', transform=ax.transAxes
+    )
+
+def display_no_data_message(ax):
+    ax.text(
+        .01, .95, 'Nash-Sutcliffe: ---',
+        fontsize=8, horizontalalignment='left', transform=ax.transAxes
+    )
+    ax.text(
+        .01, 0.90, '$R^2$: ---',
+        fontsize=8, horizontalalignment='left', color='limegreen', transform=ax.transAxes
+    )
+    ax.text(
+        .99, 0.95, 'PBIAS: ---',
+        fontsize=8, horizontalalignment='right', color='limegreen', transform=ax.transAxes
+    )
+
+def handle_exception(ax, exception_message):
+    ax.text(
+        .5, .5, exception_message,
+        fontsize=12, horizontalalignment='center', weight='extra bold', color='y', transform=ax.transAxes
+    )
+
+
+def plot_(wd, subnum, startDate, ts, obd_file, obd_col):
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
+    ax.tick_params(axis='both', labelsize=8)
+    plot_simulated(ax, wd, subnum, startDate, ts)
+    plot_stf_obd(ax, wd, obd_file, startDate, subnum, ts, obd_col)
+    plt.show()
+
+# def plot_tot():
+if __name__ == '__main__':
+    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW"
+    obd_file = "stf_day.obd.csv"
+
+    m1 = SWATMFout(wd)
+    print(m1.get_stf_sim_obd(obd_file))
+    # print(m1)
+
+
+    # stfs = {3: "sub03"}
+    # dtws = {431: "g_431", 4011: "g_431"}
+    # subnum = 3
+
+    # obd_col = "sub03"
+
+    # startDate = '1/1/2013'
+    # ts ="day"
+    # keysList = list(dtws.values())
+    # # print(keysList)
+    # plot_(wd, subnum, startDate, ts, obd_file, obd_col)
+
+
