@@ -11,6 +11,8 @@ docs/templates/
 .pytest_cache
 .vscode
 swatmf.egg-info
+flopy.egg-info
+pyemu.egg-info
 build
 dist
 .trash/
