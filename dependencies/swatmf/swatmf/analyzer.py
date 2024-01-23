@@ -9,6 +9,10 @@ import math
 import matplotlib.dates as mdates
 from swatmf.handler import SWATMFout
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle
+import matplotlib.gridspec as gridspec
+from swatmf.handler import SWATMFout
+
 
 
 def get_all_scenario_lists(wd):
@@ -850,45 +854,7 @@ def plot_prior_posterior_par_hist(prior_df, post_df, sel_pars, width=7, height=5
 
 
 # scratches for QSWATMOD
-# read data first
-# def read_stf_obd(wd, obd_file):
-#     return pd.read_csv(
-#         os.path.join(wd, obd_file),
-#         index_col=0,
-#         header=0,
-#         parse_dates=True,
-#         na_values=[-999, ""]
-#     )
-
-def read_output_rch_data(wd, colNum=6):
-    return pd.read_csv(
-        os.path.join(wd, "output.rch"),
-        sep=r'\s+',
-        skiprows=9,
-        usecols=[1, 3, colNum],
-        names=["date", "filter", "stf_sim"],
-        index_col=0
-    )
-
-# def update_index(df, startDate, ts):
-#     if ts.lower() == "day":
-#         df.index = pd.date_range(startDate, periods=len(df.stf_sim))
-#     elif ts.lower() == "month":
-#         df = df[df['filter'] < 13]
-#         df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
-#     else:
-#         df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
-#     return df
-
-def plot_simulated(ax, wd, subnum, startDate, ts):
-    output_rch = read_output_rch_data(wd)
-    df = output_rch.loc[subnum]
-    try:
-        df = update_index(df, startDate, ts)
-        ax.plot(df.index.values, df.stf_sim.values, c='g', lw=1, label="Simulated")
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
-    except Exception as e:
-        handle_exception(ax, str(e))
+# data comes from hanlder module and SWATMFout class
 
 def plot_observed_data(ax, df3, obd_col):
     size = 10
@@ -906,15 +872,56 @@ def plot_observed_data(ax, df3, obd_col):
     else:
         display_no_data_message(ax)
 
-def plot_stf_obd(ax, stf_obd_df, obd_col):
+def plot_stf_sim_obd(ax, stf_obd_df, obd_col):
     ax.plot(stf_obd_df.index.values, stf_obd_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
     plot_observed_data(ax, stf_obd_df, obd_col)
     # except Exception as e:
     #     handle_exception(ax, str(e))
 
 def plot_stf_sim(ax, stf_df):
-    ax.plot(stf_df.index.values, stf_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
-    
+    try:
+        ax.plot(stf_df.index.values, stf_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    except Exception as e:
+        handle_exception(ax, str(e)) 
+
+
+# gw
+def plot_gw_obd_data(ax, df, grid_id, obd_col):
+
+
+
+    ax.plot(df.index.values, df[str(grid_id)].values, c='skyblue', lw=1, label="Simulated")
+
+def plot_gw_obd(ax, df, obd_col):
+    ax.plot(
+        df.index.values, df[obd_col].values, c='m', lw=1.5, alpha=0.5,
+        label="Observed", zorder=3
+    )
+    # ax.scatter(
+    #     df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
+    #     label="Observed", zorder=3
+    # )
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    # if len(df[obd_col]) > 1:
+    #     calculate_metrics(ax, df, obd_col)
+    # else:
+    #     display_no_data_message(ax)    
+
+def plot_gw_sim_obd(ax, sim_df, grid_id, obd_df, obd_col):
+    df =  pd.concat([sim_df.loc[:, str(grid_id)], obd_df.loc[:, obd_col]], axis=1).dropna()
+    print(df)
+    ax.plot(df.index.values, df[str(grid_id)].values, c='skyblue', lw=1, label="Simulated")
+    ax.plot(
+        df.index.values, df[obd_col].values, c='m', lw=1.5, alpha=0.5,
+        label="Observed", zorder=3
+    )
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    if len(df[obd_col]) > 1:
+        calculate_metrics_gw(ax, df, grid_id, obd_col)
+    else:
+        display_no_data_message(ax)  
+
 
 # NOTE: metrics =======================================================================================
 def calculate_metrics(ax, df3, obd_col):
@@ -923,6 +930,14 @@ def calculate_metrics(ax, df3, obd_col):
     )
     dNS = 1 - (sum((df3.stf_sim - df3[obd_col])**2) / sum((df3[obd_col] - (df3[obd_col]).mean())**2))
     PBIAS = 100 * (sum(df3[obd_col] - df3.stf_sim) / sum(df3[obd_col]))
+    display_metrics(ax, dNS, r_squared, PBIAS)
+
+def calculate_metrics_gw(ax, df3, grid_id, obd_col):
+    r_squared = ((sum((df3[obd_col] - df3[obd_col].mean()) * (df3[str(grid_id)] - df3[str(grid_id)].mean())))**2) / (
+            (sum((df3[obd_col] - df3[obd_col].mean())**2) * (sum((df3[str(grid_id)] - df3[str(grid_id)].mean())**2)))
+    )
+    dNS = 1 - (sum((df3[str(grid_id)] - df3[obd_col])**2) / sum((df3[obd_col] - (df3[obd_col]).mean())**2))
+    PBIAS = 100 * (sum(df3[obd_col] - df3[str(grid_id)]) / sum(df3[obd_col]))
     display_metrics(ax, dNS, r_squared, PBIAS)
 
 def display_metrics(ax, dNS, r_squared, PBIAS):
@@ -959,38 +974,219 @@ def handle_exception(ax, exception_message):
         fontsize=12, horizontalalignment='center', weight='extra bold', color='y', transform=ax.transAxes
     )
 
-
-
-
 def format_axes(fig):
     for i, ax in enumerate(fig.axes):
         ax.text(0.5, 0.5, "ax%d" % (i+1), va="center", ha="center")
         ax.tick_params(labelbottom=False, labelleft=False)
 
 
+# std plot
+def std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
+    # fig, axes = plt.subplots(
+    #     nrows=4, figsize=(14, 7), sharex=True,
+    #     gridspec_kw={
+    #                 'height_ratios': [0.2, 0.2, 0.4, 0.2],
+    #                 'hspace': 0.1
+    #                 })
+    # plt.subplots_adjust(left=0.06, right=0.98, top=0.83, bottom=0.05)
+    width = -20
+    dff = dff.resample("M").mean()
+    # == Precipitation ============================================================
+    axes[0].bar(
+        dff.index, dff.prec, width * widthExg,
+        # edgecolor = 'w',
+        align='edge',
+        # linewidth = 0.1,
+        color='slateblue')
+    axes[0].set_ylim((dff.prec.max() + dff.prec.max() * 0.1), 0)
+    axes[0].xaxis.tick_top()
+    axes[0].spines['bottom'].set_visible(False)
+    axes[0].tick_params(axis='both', labelsize=8)
 
-def plot_(stf_obd_df, obd_col):
-    fig = plt.figure(
-        figsize=(8, 10),
-        # layout="constrained"
+    # if viz_ts == "MA":
+    #     axes[0].set_title('Water Balance - Monthly Average [mm]', fontsize=12, fontweight='semibold')
+    #     dff = dff.resample("M").mean()
+    # elif viz_ts == "AA":
+    #     axes[0].set_title('Water Balance - Annual Average [mm]', fontsize=12, fontweight='semibold')
+    # ttl = axes[0].title
+    # ttl.set_position([0.5, 1.8])
+    # == Soil Water ===============================================================
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['bottom'].set_visible(False)
+    axes[1].get_xaxis().set_visible(False)
+    axes[1].bar(
+        dff.index, dff.sw, width * widthExg,
+        bottom=dff.gwq + dff.latq + dff.surq,
+        # edgecolor = 'w',
+        align='edge',
+        # linewidth = 0.3,
+        color='lightgreen')
+    axes[1].set_ylim(
+        (dff.gwq + dff.latq + dff.surq).max(),
+        (dff.gwq + dff.latq + dff.surq + dff.sw).max()
         )
+    axes[1].tick_params(axis='both', labelsize=8)
+    # == Interaction ============================================================
+    axes[2].spines['top'].set_visible(False)
+    axes[2].spines['bottom'].set_visible(False)
+    axes[2].get_xaxis().set_visible(False)
+    # gwq -> Groundwater discharge to stream
+    axes[2].bar(
+        dff.index, dff.gwq, width * widthExg,
+        # edgecolor = 'w',
+        align='edge',
+        # linewidth = 0.3,
+        color='darkgreen')
+    # latq -> lateral flow to stream
+    axes[2].bar(
+        dff.index, dff.latq, width * widthExg,
+        bottom=dff.gwq,
+        # edgecolor='w',
+        align='edge',
+        # linewidth=0.3,
+        color='forestgreen')
+    # surq -> surface runoff to stream
+    axes[2].bar(
+        dff.index, dff.surq, width * widthExg,
+        bottom=dff.latq + dff.gwq,
+        # edgecolor='w',
+        align='edge',
+        # linewidth=0.3,
+        color='limegreen')
+    # Soil water
+    axes[2].bar(
+        dff.index, dff.sw, width * widthExg,
+        bottom=dff.gwq + dff.latq + dff.surq,
+        # edgecolor='w',
+        align='edge',
+        # linewidth=0.3,
+        color='lightgreen')
+    axes[2].axhline(y=0, xmin=0, xmax=1, lw=0.3, ls='--', c='grey')
+    # swgw -> seepage to aquifer
+    axes[2].bar(
+        dff.index, dff.swgw*-1, width * widthExg,
+        # bottom = df.latq,
+        # edgecolor='w',
+        align='edge',
+        # linewidth=0.8,
+        color='b')
+    # perco -> recharge to aquifer
+    axes[2].bar(
+        dff.index, dff.perco*-1, width * widthExg,
+        bottom=dff.swgw*-1,
+        # edgecolor='w',
+        align='edge',
+        # linewidth=0.8,
+        color='dodgerblue')
+    # gw -> groundwater volume
+    axes[2].bar(
+        dff.index, dff.gw*-1, width * widthExg,
+        bottom=(dff.perco*-1) + (dff.swgw*-1),
+        # edgecolor='w',
+        color=['skyblue'],
+        align='edge',
+        # linewidth=0.8
+        )
+    axes[2].set_ylim(
+        -1*(dff.swgw + dff.perco).max(),
+        (dff.gwq + dff.latq + dff.surq).max())
+    axes[2].tick_params(axis='both', labelsize=8)
+    axes[2].set_yticklabels([float(abs(x)) for x in axes[2].get_yticks()])
+    # ===
+    axes[3].bar(
+        dff.index, dff.gw, width * widthExg,
+        bottom=(dff.perco) + (dff.swgw),
+        # edgecolor='w',
+        color=['skyblue'],
+        align='edge',
+        # linewidth=0.8
+        )
+    # axes[3].set_yticklabels([int(abs(x)) for x in axes[3].get_yticks()])
+    axes[3].set_ylim(
+        ((dff.gw + dff.perco + dff.swgw).max()),
+        ((dff.gw + dff.perco + dff.swgw).min())
+        )
+    axes[3].spines['top'].set_visible(False)
+    axes[3].tick_params(axis='both', labelsize=8)
+    # this is for a broken y-axis  ##################################
+    d = .003  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass to plot, just so we don't keep repeating them
+    # if self.dlg.checkBox_darktheme.isChecked():
+    #     cutcolor = 'w'
+    # else:
+    #     cutcolor = 'k'
+    cutcolor = 'k'
+    kwargs = dict(transform=axes[1].transAxes, color=cutcolor, clip_on=False)
+    axes[1].plot((-d, +d), (-d, +d), **kwargs)        # top-left diagonal
+    axes[1].plot((1 - d, 1 + d), (-d, +d), **kwargs)  # top-right diagonal
+    kwargs.update(transform=axes[2].transAxes)  # switch to the bottom axes
+    axes[2].plot((-d, +d), (-d, +d), **kwargs)        # top-left diagonal
+    axes[2].plot((1 - d, 1 + d), (-d, +d), **kwargs)  # top-right diagonal
+    axes[2].plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
+    axes[2].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
+    kwargs.update(transform=axes[3].transAxes)  # switch to the bottom axes
+    axes[3].plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
+    axes[3].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
+    # if self.dlg.checkBox_std_legend.isChecked():
+    names = (
+        'Precipitation', 'Soil Water', 'Surface Runoff', 'Lateral Flow',
+        'Groundwater Flow to Stream',
+        'Seepage from Stream to Aquifer',
+        'Deep Percolation to Aquifer',
+        'Groundwater Volume')
+    colors = (
+        'slateblue', 'lightgreen', 'limegreen', 'forestgreen', 'darkgreen',
+        'b',
+        'dodgerblue',
+        'skyblue')
+    ps = []
+    for c in colors:
+        ps.append(
+            Rectangle(
+                (0, 0), 0.1, 0.1, fc=c,
+                # ec = 'k',
+                alpha=1))
+    legend = axes[0].legend(
+        ps, names,
+        loc='upper left',
+        # title="EXPLANATION",
+        # ,handlelength = 3, handleheight = 1.5,
+        edgecolor='none',
+        fontsize=8,
+        bbox_to_anchor=(-0.02, 1.8),
+        # labelspacing = 1.5,
+        ncol=4)
+    legend._legend_box.align = "left"
+    # legend text centered
+    for t in legend.texts:
+        t.set_multialignment('left')
+    # plt.setp(legend.get_title(), fontweight='bold', fontsize=10)
+    # plt.show()
 
-    gs = GridSpec(3, 2, figure=fig)
-    ax1 = fig.add_subplot(gs[0, :])
-    # identical to ax1 = plt.subplot(gs.new_subplotspec((0, 0), colspan=3))
-    ax2 = fig.add_subplot(gs[1, 0])
-    ax3 = fig.add_subplot(gs[1, 1])
-    ax4 = fig.add_subplot(gs[2, :])
+
+# user custimized plot
+def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw_obd_col):
+    fig = plt.figure(figsize=(8,10))
+    subplots = fig.subfigures(3, 1, height_ratios=[0.3, 0.3, 0.4])
+
+    ax0 = subplots[0].subplots(1,1)
+    ax1 = subplots[1].subplots(1,2)
+    ax2 = subplots[2].subplots(4,1, sharex=True)
+    # ax3 = subplots[1][1].subplots(2,5)
 
     # streamflow
-    ax1.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
-    ax1.tick_params(axis='both', labelsize=8)
-    plot_stf_obd(ax1, stf_obd_df, obd_col)
+    ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
+    ax0.tick_params(axis='both', labelsize=8)
+    plot_stf_sim_obd(ax0, stf_obd_df, obd_col)
+    plot_gw_sim_obd(ax1[0], gw_df, grid_id, gw_obd_df, gw_obd_col)
+    plot_gw_sim_obd(ax1[1], gw_df, 4011, gw_obd_df, gw_obd_col)
 
-    # fig.suptitle("GridSpec")
-    # format_axes(fig)
+    std_plot(ax2, std_df, viz_ts)
 
     plt.show()
+
+
+
 
 
 # def plot_tot():
@@ -1008,17 +1204,13 @@ if __name__ == '__main__':
 
     startDate = '1/1/2013'
     ts ="day"
-    stf_sim_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum, startDate, ts)
-    # plot_(stf_sim_obd_df, obd_col)
-    plot_(stf_sim_obd_df, obd_col)
+    viz_ts = "MA"
+    stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
+    std_df = m1.get_std_data()
+    
+    gw_sim_df = m1.get_gw_sim()
+    gw_obd_df = m1.get_gw_obd()
 
-
-
-
-
-
-    # keysList = list(dtws.values())
-    # # print(keysList)
-    # plot_(wd, subnum, startDate, ts, obd_file, obd_col)
-
-
+    grid_id = 431
+    gw_obd_col = "g_431"
+    temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)

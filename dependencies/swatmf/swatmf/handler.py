@@ -21,7 +21,7 @@ class SWATMFout(object):
             cio = open("file.cio", "r")
             lines = cio.readlines()
             skipyear = int(lines[59][12:16])
-            iprint = int(lines[58][12:16]) #read iprint (month, day, year)
+            self.iprint = int(lines[58][12:16]) #read iprint (month, day, year)
             styear = int(lines[8][12:16]) #begining year
             styear_warmup = int(lines[8][12:16]) + skipyear #begining year with warmup
             edyear = styear + int(lines[7][12:16])-1 # ending year
@@ -32,103 +32,16 @@ class SWATMFout(object):
                 FCbeginday = 1  #begining julian day
             FCendday = int(lines[10][12:16])  #ending julian day
             cio.close()
+            self.stdate = dt.datetime(styear, 1, 1) + dt.timedelta(FCbeginday - 1)
+            self.eddate = dt.datetime(edyear, 1, 1) + dt.timedelta(FCendday - 1)
             self.stdate_warmup = dt.datetime(styear_warmup, 1, 1) + dt.timedelta(FCbeginday - 1)
             self.eddate_warmup = dt.datetime(edyear_warmup, 1, 1) + dt.timedelta(FCendday - 1)
-            print(self.stdate_warmup.strftime("%m/%d/%Y"))
-
-
-
-    # def define_sim_period(self):
-        
-
-    #     if os.path.isfile("file.cio"):
-    #         cio = open("file.cio", "r")
-    #         lines = cio.readlines()
-    #         skipyear = int(lines[59][12:16])
-    #         iprint = int(lines[58][12:16]) #read iprint (month, day, year)
-    #         styear = int(lines[8][12:16]) #begining year
-    #         styear_warmup = int(lines[8][12:16]) + skipyear #begining year with warmup
-    #         edyear = styear + int(lines[7][12:16])-1 # ending year
-    #         edyear_warmup = styear_warmup + int(lines[7][12:16])-1 - int(lines[59][12:16])#ending year with warmup
-    #         if skipyear == 0:
-    #             FCbeginday = int(lines[9][12:16])  #begining julian day
-    #         else:
-    #             FCbeginday = 1  #begining julian day
-    #         FCendday = int(lines[10][12:16])  #ending julian day
-    #         cio.close()
-
-    #         stdate = dt.datetime(styear, 1, 1) + dt.timedelta(FCbeginday - 1)
-    #         eddate = dt.datetime(edyear, 1, 1) + dt.timedelta(FCendday - 1)
-    #         stdate_warmup = dt.datetime(styear_warmup, 1, 1) + dt.timedelta(FCbeginday - 1)
-    #         eddate_warmup = dt.datetime(edyear_warmup, 1, 1) + dt.timedelta(FCendday - 1)
-    #         startDate_warmup = stdate_warmup.strftime("%m/%d/%Y")
-    #         endDate_warmup = eddate_warmup.strftime("%m/%d/%Y")
-    #         startDate = stdate.strftime("%m/%d/%Y")
-    #         endDate = eddate.strftime("%m/%d/%Y")
-    #         duration = (eddate - stdate).days
-
-    #         self.startwm = stdate_warmup.strftime("%b")
-    #         self.startwd = stdate_warmup.strftime("%d")
-    #         self.startwy = stdate_warmup.strftime("%Y")
-    #         endw_month = eddate_warmup.strftime("%b")
-    #         endw_day = eddate_warmup.strftime("%d")
-    #         endw_year = eddate_warmup.strftime("%Y")
-
-
-
-    #         ##### 
-    #         start_month = stdate.strftime("%b")
-    #         start_day = stdate.strftime("%d")
-    #         start_year = stdate.strftime("%Y")
-    #         end_month = eddate.strftime("%b")
-    #         end_day = eddate.strftime("%d")
-    #         end_year = eddate.strftime("%Y")
-
-    #         # Put dates into the gui
-    #         self.dlg.lineEdit_start_m.setText(start_month)
-    #         self.dlg.lineEdit_start_d.setText(start_day)
-    #         self.dlg.lineEdit_start_y.setText(start_year)
-    #         self.dlg.lineEdit_end_m.setText(end_month)
-    #         self.dlg.lineEdit_end_d.setText(end_day)
-    #         self.dlg.lineEdit_end_y.setText(end_year)
-    #         self.dlg.lineEdit_duration.setText(str(duration))
-
-    #         self.dlg.lineEdit_nyskip.setText(str(skipyear))
-
-    #         # Check IPRINT option
-    #         if iprint == 0:  # month
-    #             self.dlg.comboBox_SD_timeStep.clear()
-    #             self.dlg.comboBox_SD_timeStep.addItems(['Monthly', 'Annual'])
-    #             self.dlg.radioButton_month.setChecked(1)
-    #             self.dlg.radioButton_month.setEnabled(True)
-    #             self.dlg.radioButton_day.setEnabled(False)
-    #             self.dlg.radioButton_year.setEnabled(False)
-    #         elif iprint == 1:
-    #             self.dlg.comboBox_SD_timeStep.clear()
-    #             self.dlg.comboBox_SD_timeStep.addItems(['Daily', 'Monthly', 'Annual'])
-    #             self.dlg.radioButton_day.setChecked(1)
-    #             self.dlg.radioButton_day.setEnabled(True)
-    #             self.dlg.radioButton_month.setEnabled(False)
-    #             self.dlg.radioButton_year.setEnabled(False)
-    #         else:
-    #             self.dlg.comboBox_SD_timeStep.clear()
-    #             self.dlg.comboBox_SD_timeStep.addItems(['Annual'])
-    #             self.dlg.radioButton_year.setChecked(1)
-    #             self.dlg.radioButton_year.setEnabled(True)
-    #             self.dlg.radioButton_day.setEnabled(False)
-    #             self.dlg.radioButton_month.setEnabled(False)
-    #         return stdate, eddate, stdate_warmup, eddate_warmup
-
-
-
-
-
-
 
 
 
     # scratches for QSWATMOD
     # read data first
+    # stream discharge output.rch
     def read_stf_obd(self, obd_file):
         return pd.read_csv(obd_file,
             index_col=0,
@@ -147,10 +60,11 @@ class SWATMFout(object):
             index_col=0
         )
 
-    def update_index(self, df, startDate, ts):
-        if ts.lower() == "day":
+    def update_index(self, df):
+        startDate = self.stdate_warmup
+        if self.iprint == 1:
             df.index = pd.date_range(startDate, periods=len(df.stf_sim))
-        elif ts.lower() == "month":
+        elif self.iprint == 0:
             df = df[df['filter'] < 13]
             df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
         else:
@@ -167,140 +81,116 @@ class SWATMFout(object):
             index_col=0
         )        
 
-    def get_stf_sim_obd(self, obd_file, obd_col, subnum, startDate, ts):
+    def get_stf_sim_obd(self, obd_file, obd_col, subnum):
         strObd = self.read_stf_obd(obd_file)
         output_rch = self.read_output_rch_data()
         df = output_rch.loc[subnum]
-        df = self.update_index(df, startDate, ts)
+        df = self.update_index(df)
         df2 = pd.concat([df, strObd[obd_col]], axis=1)
         df3 = df2.dropna()
         return df3
 
+    # read groundwater levels from
+    # 431, 4011
+    # let's give dataframe not series
+    def get_gw_sim(self, dtw_format=True):
+        mf_obs = pd.read_csv(
+                            "modflow.obs",
+                            sep=r'\s+',
+                            skiprows = 2,
+                            usecols = [3, 4],
+                            index_col = 0,
+                            names = ["grid_id", "mf_elev"],)
+        grid_id_lst = mf_obs.index.astype(str).values.tolist()
+        output_wt = pd.read_csv(
+                            "swatmf_out_MF_obs",
+                            sep=r'\s+',
+                            skiprows = 1,
+                            names = grid_id_lst,)
+        if dtw_format is True:
+            dtw_df = pd.DataFrame()
+            for grid_id in grid_id_lst:
+                dtw_list = output_wt.loc[:, str(grid_id)] - float(mf_obs.loc[int(grid_id)].values[0])
+                dtw_df = pd.concat([dtw_df, pd.DataFrame({str(grid_id):dtw_list})], axis=1)
+            dtw_df.index = pd.date_range(self.stdate, periods=len(dtw_df))
+            return dtw_df
+        else:
+            output_wt.index = pd.date_range(self.stdate, periods=len(output_wt))
+            return output_wt
+    # '''
+    
+    def get_gw_obd(self, ts=None):
+        if ts is None:
+            mfobd_file = "dtw_day.obd.csv"
+        if ts == "month":
+            mfobd_file = "dtw_mon.obd.csv"
+        return pd.read_csv(
+                        mfobd_file,
+                        index_col=0,
+                        header=0,
+                        parse_dates=True,
+                        na_values=[-999, ""])
+    
+    def get_gw_sim_obd(self, grid_id, obd_col, ts=None, dtw_format=True):
+        gw_obd = self.get_gw_obd(obd_col, ts=ts)
+        gw_sim = self.get_gw_sim(grid_id, dtw_format=dtw_format)
+        df =  pd.concat([gw_sim, gw_obd], axis=1).dropna()
+        return df
 
-    def read_std_dates(self, startDate, ts):
-        dt = dt.strptime(startDate, "%m/%")
 
-        if ts.lower() == "day":
-            with open("output.std", "r") as infile:
-                lines = []
-                y = ("TIME", "UNIT", "SWAT", "(mm)")
-                for line in infile:
-                    data = line.strip()
-                    if len(data) > 100 and not data.startswith(y):  # 1st filter
-                        lines.append(line)
-            dates = []
-            for line in lines:  # 2nd filter
-                try:
-                    date = line.split()[0]
-                    if (date == eYear):  # Stop looping
-                        break
-                    elif(len(str(date)) == 4):  # filter years
-                        continue
-                    else:
-                        dates.append(line)
-                except:
-                    pass
-            date_f = []
-            for i in range(len(dates)):  # 3rd filter and obtain necessary data
-                if (int(dates[i].split()[0]) == 1) and (int(dates[i].split()[0]) - int(dates[i - 1].split()[0]) == -30):
-                    continue
-                elif (int(dates[i].split()[0]) < int(dates[i-1].split()[0])) and (int(dates[i].split()[0]) != 1):
+
+
+
+    # read waterbalance data from output.std
+    def get_std_data(self):
+        startDate = self.stdate_warmup
+        eddate = self.eddate_warmup
+        eYear = eddate.strftime("%Y")
+        with open("output.std", "r") as infile:
+            lines = []
+            y = ("TIME", "UNIT", "SWAT", "(mm)")
+            for line in infile:
+                data = line.strip()
+                if len(data) > 100 and not data.startswith(y):  # 1st filter
+                    lines.append(line)           
+        dates = []
+        for line in lines:  # 2nd filter
+            try:
+                date = line.split()[0]
+                if (date == eYear):  # Stop looping
+                    break
+                elif(len(str(date)) == 4):  # filter years
                     continue
                 else:
-                    date_f.append(int(dates[i].split()[0]))
-            if self.dlg.radioButton_std_day.isChecked():
-                self.dlg.doubleSpinBox_std_w_exag.setEnabled(False)
-                dateList = pd.date_range(startDate, periods=len(date_f)).strftime("%m-%d-%Y").tolist()
-                self.dlg.comboBox_std_sdate.clear()
-                self.dlg.comboBox_std_sdate.addItems(dateList)
-                self.dlg.comboBox_std_edate.clear()
-                self.dlg.comboBox_std_edate.addItems(dateList)
-                self.dlg.comboBox_std_edate.setCurrentIndex(len(dateList)-1)
-            elif self.dlg.radioButton_std_month.isChecked():
-                self.dlg.doubleSpinBox_std_w_exag.setEnabled(True)
-                data = pd.DataFrame(date_f)
-                data.index = pd.date_range(startDate, periods=len(date_f))
-                dfm = data.resample('M').mean()
-                dfmList = dfm.index.strftime("%b-%Y").tolist()
-                self.dlg.comboBox_std_sdate.clear()
-                self.dlg.comboBox_std_sdate.addItems(dfmList)
-                self.dlg.comboBox_std_edate.clear()
-                self.dlg.comboBox_std_edate.addItems(dfmList)
-                self.dlg.comboBox_std_edate.setCurrentIndex(len(dfmList)-1)
-            elif self.dlg.radioButton_std_year.isChecked():
-                self.dlg.doubleSpinBox_std_w_exag.setEnabled(True)
-                data = pd.DataFrame(date_f)
-                data.index = pd.date_range(startDate, periods=len(date_f))
-                dfa = data.resample('A').mean()
-                dfaList = dfa.index.strftime("%Y").tolist()
-                self.dlg.comboBox_std_sdate.clear()
-                self.dlg.comboBox_std_sdate.addItems(dfaList)
-                self.dlg.comboBox_std_edate.clear()
-                self.dlg.comboBox_std_edate.addItems(dfaList)
-                self.dlg.comboBox_std_edate.setCurrentIndex(len(dfaList)-1)
-        elif self.dlg.radioButton_month.isChecked():
-            self.dlg.doubleSpinBox_std_w_exag.setEnabled(True)
-            lines = []
-            y = ("TIME", "UNIT", "SWAT", "(mm)")
-            with open(os.path.join(wd, "output.std"), "r") as infile:
-                for line in infile:
-                    data = line.strip()
-                    if len(data) > 100 and not data.startswith(y):
-                        lines.append(line)
-            dates = []
-            for line in lines:
-                try:
-                    date = line.split()[0]
-                    if (date == str(eYear)):  # Stop looping
-                        break
-                    elif(len(str(date)) == 4):  # filter years
-                        continue
-                    else:
-                        dates.append(date)
-                except:
-                    pass
-            if self.dlg.radioButton_std_month.isChecked():
-                dateList = pd.date_range(startDate, periods=len(dates), freq='M').strftime("%b-%Y").tolist()
-                self.dlg.comboBox_std_sdate.clear()
-                self.dlg.comboBox_std_sdate.addItems(dateList)
-                self.dlg.comboBox_std_edate.clear()
-                self.dlg.comboBox_std_edate.addItems(dateList)
-                self.dlg.comboBox_std_edate.setCurrentIndex(len(dateList)-1)
-            elif self.dlg.radioButton_std_year.isChecked():
-                data = pd.DataFrame(dates)
-                data.index = pd.date_range(startDate, periods=len(dates), freq='M')
-                dfa = data.resample('A').sum()  # .mean() doesn't work!
-                dfaList = dfa.index.strftime("%Y").tolist()
-                self.dlg.comboBox_std_sdate.clear()
-                self.dlg.comboBox_std_sdate.addItems(dfaList)
-                self.dlg.comboBox_std_edate.clear()
-                self.dlg.comboBox_std_edate.addItems(dfaList)
-                self.dlg.comboBox_std_edate.setCurrentIndex(len(dfaList)-1)
-        elif self.dlg.radioButton_year.isChecked():
-            self.dlg.doubleSpinBox_std_w_exag.setEnabled(True)
-            lines = []
-            y = ("TIME", "UNIT", "SWAT", "(mm)")
-            with open(os.path.join(wd, "output.std"), "r") as infile:
-                for line in infile:
-                    data = line.strip()
-                    if len(data) > 100 and not data.startswith(y):
-                        lines.append(line)
-            dates = []
-            bword = "HRU"
-            for line in lines:
-                try:
-                    date = line.split()[0]
-                    if (date == bword):  # Stop looping
-                        break
-                    else:
-                        dates.append(date)
-                except:
-                    pass
-            dateList = pd.date_range(startDate, periods=len(dates), freq='A').strftime("%Y").tolist()
-            self.dlg.comboBox_std_sdate.clear()
-            self.dlg.comboBox_std_sdate.addItems(dateList)
-            self.dlg.comboBox_std_edate.clear()
-            self.dlg.comboBox_std_edate.addItems(dateList)
-            self.dlg.comboBox_std_edate.setCurrentIndex(len(dateList)-1)
+                    dates.append(line)
+            except:
+                pass
+        date_f, prec, surq, latq, gwq, swgw, perco, tile, sw, gw = [], [], [], [], [], [], [], [], [], []
+        for i in range(len(dates)): # 3rd filter and obtain necessary data
+            if (int(dates[i].split()[0]) == 1) and (int(dates[i].split()[0]) - int(dates[i - 1].split()[0]) == -30):
+                continue
+            elif (int(dates[i].split()[0]) < int(dates[i-1].split()[0])) and (int(dates[i].split()[0]) != 1):
+                continue
+            else:
+                date_f.append(int(dates[i].split()[0]))
+                prec.append(float(dates[i].split()[1]))
+                surq.append(float(dates[i].split()[2]))
+                latq.append(float(dates[i].split()[3]))
+                gwq.append(float(dates[i].split()[4]))
+                swgw.append(float(dates[i].split()[5]))
+                # perco.append(float(dates[i].split()[6]))
+                perco.append(float(dates[i].split()[7]))  # SM3 uses reach !SP
+                tile.append(float(dates[i].split()[8]))  # not use it for now
+                sw.append(float(dates[i].split()[10]))
+                gw.append(float(dates[i].split()[11]))
+        names = ["prec", "surq", "latq", "gwq", "swgw", "perco", "tile", "sw", "gw"]
+        data = pd.DataFrame(
+            np.column_stack([prec, surq, latq, gwq, swgw, perco, tile, sw, gw]),
+            columns=names)
+        data.index = pd.date_range(startDate, periods=len(data))
+        return data
+    
+
+
 
 
