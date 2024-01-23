@@ -892,12 +892,10 @@ def plot_simulated(ax, wd, subnum, startDate, ts):
 
 def plot_observed_data(ax, df3, obd_col):
     size = 10
-
     ax.plot(
         df3.index.values, df3[obd_col].values, c='m', lw=1.5, alpha=0.5,
         label="Observed", zorder=3
     )
-
     # ax.scatter(
     #     df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
     #     label="Observed", zorder=3
@@ -908,29 +906,15 @@ def plot_observed_data(ax, df3, obd_col):
     else:
         display_no_data_message(ax)
 
-def plot_stf_obd_org(ax, wd, obd_file, startDate, subnum, ts, obd_col):
-    strObd = read_stf_obd(wd, obd_file)
-    output_rch = read_output_rch_data(wd)
-    # try:
-    df = output_rch.loc[subnum]
-    df = update_index(df, startDate, ts)
-    ax.plot(df.index.values, df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
-    df2 = pd.concat([df, strObd[obd_col]], axis=1)
-    df3 = df2.dropna().resample('M').mean()
-    plot_observed_data(ax, df3, obd_col)
-    # except Exception as e:
-    #     handle_exception(ax, str(e))
-
 def plot_stf_obd(ax, stf_obd_df, obd_col):
-
     ax.plot(stf_obd_df.index.values, stf_obd_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
     plot_observed_data(ax, stf_obd_df, obd_col)
     # except Exception as e:
     #     handle_exception(ax, str(e))
 
-
-
-
+def plot_stf_sim(ax, stf_df):
+    ax.plot(stf_df.index.values, stf_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
+    
 
 # NOTE: metrics =======================================================================================
 def calculate_metrics(ax, df3, obd_col):
@@ -985,19 +969,6 @@ def format_axes(fig):
 
 
 
-
-
-
-
-def plot_(stf_obd_df, obd_col):
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
-    ax.tick_params(axis='both', labelsize=8)
-
-    # plot_simulated(ax, wd, subnum, startDate, ts)
-    plot_stf_obd(ax, stf_obd_df, obd_col)
-    plt.show()
-
 def plot_(stf_obd_df, obd_col):
     fig = plt.figure(
         figsize=(8, 10),
@@ -1024,8 +995,8 @@ def plot_(stf_obd_df, obd_col):
 
 # def plot_tot():
 if __name__ == '__main__':
-    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW"
+    wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
+    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW"
     obd_file = "stf_day.obd.csv"
     m1 = SWATMFout(wd)
     # print(m1)
