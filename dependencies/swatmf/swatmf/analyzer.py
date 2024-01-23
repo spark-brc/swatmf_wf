@@ -8,6 +8,7 @@ import numpy as np
 import math
 import matplotlib.dates as mdates
 from swatmf.handler import SWATMFout
+from matplotlib.gridspec import GridSpec
 
 
 def get_all_scenario_lists(wd):
@@ -850,14 +851,14 @@ def plot_prior_posterior_par_hist(prior_df, post_df, sel_pars, width=7, height=5
 
 # scratches for QSWATMOD
 # read data first
-def read_stf_obd(wd, obd_file):
-    return pd.read_csv(
-        os.path.join(wd, obd_file),
-        index_col=0,
-        header=0,
-        parse_dates=True,
-        na_values=[-999, ""]
-    )
+# def read_stf_obd(wd, obd_file):
+#     return pd.read_csv(
+#         os.path.join(wd, obd_file),
+#         index_col=0,
+#         header=0,
+#         parse_dates=True,
+#         na_values=[-999, ""]
+#     )
 
 def read_output_rch_data(wd, colNum=6):
     return pd.read_csv(
@@ -869,15 +870,15 @@ def read_output_rch_data(wd, colNum=6):
         index_col=0
     )
 
-def update_index(df, startDate, ts):
-    if ts.lower() == "day":
-        df.index = pd.date_range(startDate, periods=len(df.stf_sim))
-    elif ts.lower() == "month":
-        df = df[df['filter'] < 13]
-        df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
-    else:
-        df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
-    return df
+# def update_index(df, startDate, ts):
+#     if ts.lower() == "day":
+#         df.index = pd.date_range(startDate, periods=len(df.stf_sim))
+#     elif ts.lower() == "month":
+#         df = df[df['filter'] < 13]
+#         df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
+#     else:
+#         df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
+#     return df
 
 def plot_simulated(ax, wd, subnum, startDate, ts):
     output_rch = read_output_rch_data(wd)
@@ -891,17 +892,23 @@ def plot_simulated(ax, wd, subnum, startDate, ts):
 
 def plot_observed_data(ax, df3, obd_col):
     size = 10
-    ax.scatter(
-        df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
+
+    ax.plot(
+        df3.index.values, df3[obd_col].values, c='m', lw=1.5, alpha=0.5,
         label="Observed", zorder=3
     )
+
+    # ax.scatter(
+    #     df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
+    #     label="Observed", zorder=3
+    # )
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
     if len(df3[obd_col]) > 1:
         calculate_metrics(ax, df3, obd_col)
     else:
         display_no_data_message(ax)
 
-def plot_stf_obd(ax, wd, obd_file, startDate, subnum, ts, obd_col):
+def plot_stf_obd_org(ax, wd, obd_file, startDate, subnum, ts, obd_col):
     strObd = read_stf_obd(wd, obd_file)
     output_rch = read_output_rch_data(wd)
     # try:
@@ -913,6 +920,16 @@ def plot_stf_obd(ax, wd, obd_file, startDate, subnum, ts, obd_col):
     plot_observed_data(ax, df3, obd_col)
     # except Exception as e:
     #     handle_exception(ax, str(e))
+
+def plot_stf_obd(ax, stf_obd_df, obd_col):
+
+    ax.plot(stf_obd_df.index.values, stf_obd_df.stf_sim.values, c='limegreen', lw=1, label="Simulated")
+    plot_observed_data(ax, stf_obd_df, obd_col)
+    # except Exception as e:
+    #     handle_exception(ax, str(e))
+
+
+
 
 
 # NOTE: metrics =======================================================================================
@@ -959,33 +976,76 @@ def handle_exception(ax, exception_message):
     )
 
 
-def plot_(wd, subnum, startDate, ts, obd_file, obd_col):
+
+
+def format_axes(fig):
+    for i, ax in enumerate(fig.axes):
+        ax.text(0.5, 0.5, "ax%d" % (i+1), va="center", ha="center")
+        ax.tick_params(labelbottom=False, labelleft=False)
+
+
+
+
+
+
+
+def plot_(stf_obd_df, obd_col):
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax.tick_params(axis='both', labelsize=8)
-    plot_simulated(ax, wd, subnum, startDate, ts)
-    plot_stf_obd(ax, wd, obd_file, startDate, subnum, ts, obd_col)
+
+    # plot_simulated(ax, wd, subnum, startDate, ts)
+    plot_stf_obd(ax, stf_obd_df, obd_col)
     plt.show()
+
+def plot_(stf_obd_df, obd_col):
+    fig = plt.figure(
+        figsize=(8, 10),
+        # layout="constrained"
+        )
+
+    gs = GridSpec(3, 2, figure=fig)
+    ax1 = fig.add_subplot(gs[0, :])
+    # identical to ax1 = plt.subplot(gs.new_subplotspec((0, 0), colspan=3))
+    ax2 = fig.add_subplot(gs[1, 0])
+    ax3 = fig.add_subplot(gs[1, 1])
+    ax4 = fig.add_subplot(gs[2, :])
+
+    # streamflow
+    ax1.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
+    ax1.tick_params(axis='both', labelsize=8)
+    plot_stf_obd(ax1, stf_obd_df, obd_col)
+
+    # fig.suptitle("GridSpec")
+    # format_axes(fig)
+
+    plt.show()
+
 
 # def plot_tot():
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW"
     obd_file = "stf_day.obd.csv"
-
     m1 = SWATMFout(wd)
-    print(m1.get_stf_sim_obd(obd_file))
     # print(m1)
-
-
     # stfs = {3: "sub03"}
     # dtws = {431: "g_431", 4011: "g_431"}
-    # subnum = 3
+    subnum = 3
 
-    # obd_col = "sub03"
+    obd_col = "sub03"
 
-    # startDate = '1/1/2013'
-    # ts ="day"
+    startDate = '1/1/2013'
+    ts ="day"
+    stf_sim_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum, startDate, ts)
+    # plot_(stf_sim_obd_df, obd_col)
+    plot_(stf_sim_obd_df, obd_col)
+
+
+
+
+
+
     # keysList = list(dtws.values())
     # # print(keysList)
     # plot_(wd, subnum, startDate, ts, obd_file, obd_col)

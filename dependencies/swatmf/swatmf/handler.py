@@ -17,13 +17,10 @@ class SWATMFout(object):
     def __init__(self, wd):
         os.chdir(wd)
 
-
-
     # scratches for QSWATMOD
     # read data first
     def read_stf_obd(self, obd_file):
-        return pd.read_csv(
-            os.path.join(self, obd_file),
+        return pd.read_csv(obd_file,
             index_col=0,
             header=0,
             parse_dates=True,
@@ -50,13 +47,24 @@ class SWATMFout(object):
             df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
         return df
 
-    def get_stf_sim_obd(self, obd_file):
+    def get_stf_sim(colNum=6):
+        return pd.read_csv(
+            "output.rch",
+            sep=r'\s+',
+            skiprows=9,
+            usecols=[1, 3, colNum],
+            names=["date", "filter", "stf_sim"],
+            index_col=0
+        )        
+
+    def get_stf_sim_obd(self, obd_file, obd_col, subnum, startDate, ts):
         strObd = self.read_stf_obd(obd_file)
-        # output_rch = read_output_rch_data(wd)
-        # # try:
-        # df = output_rch.loc[subnum]
-        # df = update_index(df, startDate, ts)
-        return strObd
+        output_rch = self.read_output_rch_data()
+        df = output_rch.loc[subnum]
+        df = self.update_index(df, startDate, ts)
+        df2 = pd.concat([df, strObd[obd_col]], axis=1)
+        df3 = df2.dropna()
+        return df3
 
 
 
