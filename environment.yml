@@ -25,6 +25,5 @@ dependencies:
     # - git+https://github.com/modflowpy/flopy.git
     # - pyemu
     # - git+https://github.com/pypest/pyemu.git@develop
-    - hydroeval
     - termcolor
     - tqdm
