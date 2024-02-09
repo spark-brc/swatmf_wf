@@ -28,7 +28,7 @@ You essentially have 2 options:
 Easy way
 --------
 
-- `Download the data zip file <https://github.com/spark-brc/swatmf_tutorials/archive/refs/heads/main.zip>`_
+- `Download the data zip file <https://github.com/spark-brc/swatmf_wf/archive/refs/heads/main.zip>`_
 - Unzip `swatmf_tut-main.zip` to a prefered location.
 
 
@@ -48,7 +48,7 @@ Hard way (Dev mode)
 
 .. code-block:: bash
 
-   git clone https://github.com/spark-brc/swatmf_tutorials.git
+   git clone https://github.com/spark-brc/swatmf_wf.git
 
 
 ============

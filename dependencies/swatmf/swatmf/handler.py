@@ -98,26 +98,34 @@ class SWATMFout(object):
                             "modflow.obs",
                             sep=r'\s+',
                             skiprows = 2,
-                            usecols = [3, 4],
-                            index_col = 0,
-                            names = ["grid_id", "mf_elev"],)
-        grid_id_lst = mf_obs.index.astype(str).values.tolist()
+                            usecols = [2, 3, 4],
+                            # index_col = 0,
+                            names = ["layer", "grid_id", "mf_elev"],)
+        mf_obs["grid_layer"] = "sim_g" + mf_obs['grid_id'].astype(str) + "lyr" + mf_obs["layer"].astype(str)
+
+        # need to change grid id info to allow multi-layer outputs
+        grid_lyr_lst = mf_obs.loc[:, "grid_layer"].tolist()
         output_wt = pd.read_csv(
                             "swatmf_out_MF_obs",
                             sep=r'\s+',
                             skiprows = 1,
-                            names = grid_id_lst,)
+                            names = grid_lyr_lst)
+        
+        # '''
         if dtw_format is True:
             dtw_df = pd.DataFrame()
-            for grid_id in grid_id_lst:
-                dtw_list = output_wt.loc[:, str(grid_id)] - float(mf_obs.loc[int(grid_id)].values[0])
-                dtw_df = pd.concat([dtw_df, pd.DataFrame({str(grid_id):dtw_list})], axis=1)
+            for grid_id in grid_lyr_lst:
+                dtw_list = output_wt.loc[:, str(grid_id)] - float(mf_obs["mf_elev"].loc[mf_obs["grid_layer"]==grid_id])
+                dtw_df = pd.concat(
+                    [dtw_df, pd.DataFrame({str(grid_id):dtw_list})], 
+                    axis=1, ignore_index=True)
+            dtw_df.columns = grid_lyr_lst
             dtw_df.index = pd.date_range(self.stdate, periods=len(dtw_df))
             return dtw_df
         else:
             output_wt.index = pd.date_range(self.stdate, periods=len(output_wt))
             return output_wt
-    # '''
+        # '''
     
     def get_gw_obd(self, ts=None):
         if ts is None:

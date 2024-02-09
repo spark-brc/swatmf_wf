@@ -887,30 +887,12 @@ def plot_stf_sim(ax, stf_df):
 
 
 # gw
-def plot_gw_obd_data(ax, df, grid_id, obd_col):
-
-
-
+def plot_gw_sim(ax, df, grid_id):
     ax.plot(df.index.values, df[str(grid_id)].values, c='skyblue', lw=1, label="Simulated")
 
-def plot_gw_obd(ax, df, obd_col):
-    ax.plot(
-        df.index.values, df[obd_col].values, c='m', lw=1.5, alpha=0.5,
-        label="Observed", zorder=3
-    )
-    # ax.scatter(
-    #     df3.index.values, df3[obd_col].values, c='m', lw=1, alpha=0.5, s=size, marker='x',
-    #     label="Observed", zorder=3
-    # )
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
-    # if len(df[obd_col]) > 1:
-    #     calculate_metrics(ax, df, obd_col)
-    # else:
-    #     display_no_data_message(ax)    
 
 def plot_gw_sim_obd(ax, sim_df, grid_id, obd_df, obd_col):
     df =  pd.concat([sim_df.loc[:, str(grid_id)], obd_df.loc[:, obd_col]], axis=1).dropna()
-    print(df)
     ax.plot(df.index.values, df[str(grid_id)].values, c='skyblue', lw=1, label="Simulated")
     ax.plot(
         df.index.values, df[obd_col].values, c='m', lw=1.5, alpha=0.5,
@@ -933,24 +915,27 @@ def calculate_metrics(ax, df3, obd_col):
     display_metrics(ax, dNS, r_squared, PBIAS)
 
 def calculate_metrics_gw(ax, df3, grid_id, obd_col):
-    r_squared = ((sum((df3[obd_col] - df3[obd_col].mean()) * (df3[str(grid_id)] - df3[str(grid_id)].mean())))**2) / (
-            (sum((df3[obd_col] - df3[obd_col].mean())**2) * (sum((df3[str(grid_id)] - df3[str(grid_id)].mean())**2)))
-    )
-    dNS = 1 - (sum((df3[str(grid_id)] - df3[obd_col])**2) / sum((df3[obd_col] - (df3[obd_col]).mean())**2))
-    PBIAS = 100 * (sum(df3[obd_col] - df3[str(grid_id)]) / sum(df3[obd_col]))
+    r_squared = (
+            ((sum((df3.loc[:, obd_col] - df3.loc[:, obd_col].mean()) * 
+            (df3.loc[:, grid_id]  - df3.loc[:, grid_id].mean())))**2) / 
+            ((sum((df3.loc[:, obd_col] - df3.loc[:, obd_col].mean())**2) * 
+            (sum((df3.loc[:, grid_id]  - df3.loc[:, grid_id].mean())**2)))
+            ))
+    dNS = 1 - (sum((df3.loc[:, grid_id]  - df3.loc[:, obd_col] )**2) / sum((df3.loc[:, obd_col] - (df3.loc[:, obd_col]).mean())**2))
+    PBIAS = 100 * (sum(df3.loc[:, obd_col] - df3.loc[:, grid_id] ) / sum(df3.loc[:, obd_col] ))
     display_metrics(ax, dNS, r_squared, PBIAS)
 
 def display_metrics(ax, dNS, r_squared, PBIAS):
     ax.text(
-        .01, 0.95, f'Nash-Sutcliffe: {dNS:.4f}',
+        .01, 0.90, f'Nash-Sutcliffe: {dNS:.4f}',
         fontsize=8, horizontalalignment='left', color='limegreen', transform=ax.transAxes
     )
     ax.text(
-        .01, 0.90, f'$R^2$: {r_squared:.4f}',
+        .01, 0.80, f'$R^2$: {r_squared:.4f}',
         fontsize=8, horizontalalignment='left', color='limegreen', transform=ax.transAxes
     )
     ax.text(
-        .99, 0.95, f'PBIAS: {PBIAS:.4f}',
+        .99, 0.90, f'PBIAS: {PBIAS:.4f}',
         fontsize=8, horizontalalignment='right', color='limegreen', transform=ax.transAxes
     )
 
@@ -1166,23 +1151,34 @@ def std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
 
 # user custimized plot
 def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw_obd_col):
-    fig = plt.figure(figsize=(8,10))
-    subplots = fig.subfigures(3, 1, height_ratios=[0.3, 0.3, 0.4])
+    fig = plt.figure(figsize=(10,10))
+    subplots = fig.subfigures(4, 1, height_ratios=[0.2, 0.2, 0.2, 0.4], hspace=-0.05)
 
     ax0 = subplots[0].subplots(1,1)
-    ax1 = subplots[1].subplots(1,2)
-    ax2 = subplots[2].subplots(4,1, sharex=True)
+    ax1 = subplots[1].subplots(1,2, sharey=True, 
+                    gridspec_kw={
+                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
+                    'wspace': 0.0
+                    })
+    ax2 = subplots[2].subplots(1,2, sharey=True, 
+                    gridspec_kw={
+                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
+                    'wspace': 0.0
+                    })
+    ax3 = subplots[3].subplots(4,1, sharex=True, height_ratios=[0.2, 0.2, 0.4, 0.2])
     # ax3 = subplots[1][1].subplots(2,5)
 
     # streamflow
     ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax0.tick_params(axis='both', labelsize=8)
     plot_stf_sim_obd(ax0, stf_obd_df, obd_col)
-    plot_gw_sim_obd(ax1[0], gw_df, grid_id, gw_obd_df, gw_obd_col)
-    plot_gw_sim_obd(ax1[1], gw_df, 4011, gw_obd_df, gw_obd_col)
-
-    std_plot(ax2, std_df, viz_ts)
-
+    plot_gw_sim_obd(ax1[0], gw_df, "sim_g249lyr2", gw_obd_df, "g249lyr2")
+    plot_gw_sim_obd(ax1[1], gw_df, "sim_g249lyr3", gw_obd_df, "g249lyr3")
+    # plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr2", gw_obd_df, "g1203lyr2")
+    # plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr2", gw_obd_df, "g1205lyr2")
+    plot_gw_sim(ax2[0], gw_df, "sim_g1203lyr2")
+    plot_gw_sim(ax2[1], gw_df, "sim_g1205lyr2")
+    std_plot(ax3, std_df, viz_ts)
     plt.show()
 
 
@@ -1191,26 +1187,26 @@ def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW"
-    obd_file = "stf_day.obd.csv"
-    m1 = SWATMFout(wd)
-    # print(m1)
-    # stfs = {3: "sub03"}
-    # dtws = {431: "g_431", 4011: "g_431"}
-    subnum = 3
+    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
+    wd_lb = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_lb"
+    wd_ub = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_ub"
 
-    obd_col = "sub03"
-
-    startDate = '1/1/2013'
-    ts ="day"
-    viz_ts = "MA"
-    stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
-    std_df = m1.get_std_data()
-    
-    gw_sim_df = m1.get_gw_sim()
-    gw_obd_df = m1.get_gw_obd()
-
-    grid_id = 431
-    gw_obd_col = "g_431"
-    temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)
+    for wd in [wd_lb, wd_ub]:
+        obd_file = "stf_day.obd.csv"
+        m1 = SWATMFout(wd)
+        # print(m1)
+        # stfs = {3: "sub03"}
+        # dtws = {431: "g_431", 4011: "g_431"}
+        subnum = 3
+        obd_col = "sub03"
+        ts ="day"
+        viz_ts = "MA"
+        stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
+        std_df = m1.get_std_data()
+        gw_sim_df = m1.get_gw_sim()
+        gw_obd_df = m1.get_gw_obd()
+        # print(gw_sim_df)
+        grid_id = "sim_g249lyr2"
+        gw_obd_col = "g249lyr2"
+        temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)
+        print(wd[-2:])
