@@ -1176,8 +1176,8 @@ def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw
     plot_gw_sim_obd(ax1[1], gw_df, "sim_g249lyr3", gw_obd_df, "g249lyr3")
     # plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr2", gw_obd_df, "g1203lyr2")
     # plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr2", gw_obd_df, "g1205lyr2")
-    plot_gw_sim(ax2[0], gw_df, "sim_g1203lyr2")
-    plot_gw_sim(ax2[1], gw_df, "sim_g1205lyr2")
+    plot_gw_sim(ax2[0], gw_df, "sim_g1203lyr3")
+    plot_gw_sim(ax2[1], gw_df, "sim_g1205lyr3")
     std_plot(ax3, std_df, viz_ts)
     plt.show()
 
@@ -1191,7 +1191,9 @@ if __name__ == '__main__':
     wd_lb = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_lb"
     wd_ub = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_ub"
 
-    for wd in [wd_lb, wd_ub]:
+    for wd in [
+        wd_lb, 
+        wd_ub]:
         obd_file = "stf_day.obd.csv"
         m1 = SWATMFout(wd)
         # print(m1)
