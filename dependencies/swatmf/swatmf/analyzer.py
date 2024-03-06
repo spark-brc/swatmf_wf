@@ -7,7 +7,7 @@ from hydroeval import evaluator, nse, rmse, pbias
 import numpy as np
 import math
 import matplotlib.dates as mdates
-from swatmf.handler import SWATMFout
+
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
@@ -1172,18 +1172,20 @@ def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw
     ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax0.tick_params(axis='both', labelsize=8)
     plot_stf_sim_obd(ax0, stf_obd_df, obd_col)
-    '''
+    # '''
     plot_gw_sim_obd(ax1[0], gw_df, "sim_g249lyr2", gw_obd_df, "g249lyr2")
     plot_gw_sim_obd(ax1[1], gw_df, "sim_g249lyr3", gw_obd_df, "g249lyr3")
     # plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr2", gw_obd_df, "g1203lyr2")
     # plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr2", gw_obd_df, "g1205lyr2")
     plot_gw_sim(ax2[0], gw_df, "sim_g1203lyr3")
     plot_gw_sim(ax2[1], gw_df, "sim_g1205lyr3")
-    '''
+    # '''
     std_plot(ax3, std_df, viz_ts)
     plt.show()
 
 
+
+# def ext_dtw():
 
 
 
@@ -1191,26 +1193,38 @@ def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
     wd_lb = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_lb"
-    wd_ub = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_v02"
+    wd_ub = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\m01-base"
 
-    for wd in [
-        # wd_lb, 
-        wd_ub]:
-        obd_file = "stf_day.obd.csv"
-        m1 = SWATMFout(wd)
-        # print(m1)
-        # stfs = {3: "sub03"}
-        # dtws = {431: "g_431", 4011: "g_431"}
-        subnum = 3
-        obd_col = "sub03"
-        ts ="day"
-        viz_ts = "MA"
-        stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
-        std_df = m1.get_std_data()
-        gw_sim_df = m1.get_gw_sim()
-        gw_obd_df = m1.get_gw_obd()
-        # print(gw_sim_df)
-        grid_id = "sim_g249lyr2"
-        gw_obd_col = "g249lyr2"
-        temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)
-        print(wd[-2:])
+    # for wd in [
+    #     wd_lb, 
+    #     wd_ub]:
+    #     obd_file = "stf_day.obd.csv"
+    #     m1 = SWATMFout(wd)
+    #     # print(m1)
+    #     # stfs = {3: "sub03"}
+    #     # dtws = {431: "g_431", 4011: "g_431"}
+    #     subnum = 3
+    #     obd_col = "sub03"
+    #     ts ="day"
+    #     viz_ts = "MA"
+    #     stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
+    #     std_df = m1.get_std_data()
+    #     gw_sim_df = m1.get_gw_sim()
+    #     gw_obd_df = m1.get_gw_obd()
+    #     # print(gw_sim_df)
+    #     grid_id = "sim_g249lyr2"
+    #     gw_obd_col = "g249lyr2"
+    #     temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)
+    #     print(wd[-2:])
+    m1 = SWATMFout(wd_ub)
+    df =  m1.get_gw_sim()
+    print(df)
+
+    for col in df.columns:
+        df.loc[:, col].to_csv(
+                        '{}.txt'.format(col), sep='\t', encoding='utf-8',
+                        index=True, header=False, float_format='%.7e'
+                        )
+
+
+

@@ -101,7 +101,7 @@ class SWATMFout(object):
                             usecols = [2, 3, 4],
                             # index_col = 0,
                             names = ["layer", "grid_id", "mf_elev"],)
-        mf_obs["grid_layer"] = "sim_g" + mf_obs['grid_id'].astype(str) + "lyr" + mf_obs["layer"].astype(str)
+        mf_obs["grid_layer"] = "dtw_sim" + mf_obs['grid_id'].astype(str) + "lyr" + mf_obs["layer"].astype(str)
 
         # need to change grid id info to allow multi-layer outputs
         grid_lyr_lst = mf_obs.loc[:, "grid_layer"].tolist()

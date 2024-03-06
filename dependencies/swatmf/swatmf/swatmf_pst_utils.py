@@ -329,6 +329,21 @@ def extract_depth_to_water(grid_ids, start_day, end_day, time_step="day"):
         print('dtw_{}.txt file has been created...'.format(i))
     print('Finished ...')
 
+
+def extract_depth_to_water_layer(dtw_df, start_day, end_day, time_step="day"):
+    if time_step == "day":
+        mf_sim = dtw_df[start_day:end_day]
+    if time_step == "month":
+        mf_sim = dtw_df[start_day:end_day].resample('M').mean()
+    for col in mf_sim.columns:
+        mf_sim.loc[:, col].to_csv(
+                        '{}.txt'.format(col), sep='\t', encoding='utf-8',
+                        index=True, header=False, float_format='%.7e'
+                        )    
+        print('{}.txt file has been created...'.format(col))
+    print('Finished ...')
+
+
 def extract_avg_depth_to_water(
                 grid_ids, start_day, 
                 avg_stdate, avg_eddate,
