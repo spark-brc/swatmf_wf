@@ -10,6 +10,7 @@ import os
 import numpy as np
 import math
 import datetime as dt
+from tqdm import tqdm
 
 
 # NOTE: swat output handler
@@ -146,9 +147,6 @@ class SWATMFout(object):
         return df
 
 
-
-
-
     # read waterbalance data from output.std
     def get_std_data(self):
         startDate = self.stdate_warmup
@@ -198,7 +196,154 @@ class SWATMFout(object):
         data.index = pd.date_range(startDate, periods=len(data))
         return data
     
+    def get_gwsw_sub_df(self):
+        stdate = self.stdate 
+        tot_feats = 257
+        infile = "swatmf_out_SWAT_gwsw_monthly"
+        y = ("Monthly", "month:")
+        with open(infile, "r") as f:
+            data = [x.strip() for x in f if x.strip() and not x.strip().startswith(y)]
+        data1 = [x.split()[1] for x in data]
+        data_array = np.reshape(
+            data1, (int(len(data1)/tot_feats), tot_feats), 
+            # order='F'
+            )
+        # column_names = [i for i in range(1, 258)]
+        df_ = pd.DataFrame(
+            data_array, 
+            # columns=column_names
+            )
+        df_.index = pd.date_range(stdate, periods=len(df_), freq="ME")
+        dff = df_["1/1/2010":"12/31/2019"].astype(float)
+        mbig_df = dff.groupby(dff.index.month).mean().T
+        mbig_df["subid"] = mbig_df.index+1
+        mbig_df.to_csv("swat_gwsw_avg_mon.csv", index=False)
+        return mbig_df
+
+
+    def get_head_avg_m_df(self):
+        stdate = self.stdate 
+        tot_feats = 74095
+        # Open "swatmf_out_MF_head" file
+        y = ("Monthly", "Yearly") # Remove unnecssary lines
+        filename = "swatmf_out_MF_head_monthly"
+        with open(filename, "r") as f:
+            data = [x.strip() for x in f if x.strip() and not x.strip().startswith(y)] # Remove blank lines     
+        date = [x.strip().split() for x in data if x.strip().startswith("month:")] # Collect only lines with dates  
+        onlyDate = [x[1] for x in date] # Only date
+        data1 = [x.split() for x in data] # make each line a list
+        dateList = pd.date_range(stdate, periods=len(onlyDate), freq ='M').strftime("%b-%Y").tolist()
+        selectedSdate = 'Jan-2010'
+        selectedEdate = 'Dec-2019'
+
+        # Reverse step
+        dateSidx = dateList.index(selectedSdate)
+        dateEidx = dateList.index(selectedEdate)
+        dateList_f = dateList[dateSidx:dateEidx+1]
+
+        big_df = pd.DataFrame()
+        datecount = 0
+        for selectedDate in tqdm(dateList_f):
+            # Reverse step
+            dateIdx = dateList.index(selectedDate)
+            #only
+            onlyDate_lookup = onlyDate[dateIdx]
+            dtt = dt.datetime.strptime(selectedDate, "%b-%Y")
+            year = dtt.year
+            layerN = "1"
+            for num, line in enumerate(data1, 1):
+                if ((line[0] == "month:" in line) and (line[1] == onlyDate_lookup in line) and (line[3] == str(year) in line)):
+                    ii = num # Starting line
+            count = 0
+            while not ((data1[count+ii][0] == 'layer:') and (data1[count+ii][1] == layerN)):
+                count += 1
+            stline =count+ii+1
+
+            mf_rchs = []
+            hdcount = 0
+            while hdcount < tot_feats:
+                for kk in range(len(data1[stline])):
+                    mf_rchs.append(float(data1[stline][kk]))
+                    hdcount += 1
+                stline += 1
+            s = pd.Series(mf_rchs, name=dt.datetime.strptime(selectedDate, "%b-%Y").strftime("%Y-%m-%d"))
+            big_df = pd.concat([big_df, s], axis=1)
+            datecount +=1
+
+
+        big_df = big_df.T
+        big_df.index = pd.to_datetime(big_df.index)
+        mbig_df = big_df.groupby(big_df.index.month).mean()
+        mbig_df_t = mbig_df.T
+        mbig_df_t["grid_id"] = mbig_df_t.index + 1
+        mbig_df_t.to_csv("mf_head_avg_mon.csv", index=False)
+        print("finished ...")
+
+    def get_recharge_avg_m_df(self):
+        stdate = self.stdate 
+        tot_feats = 74095
+
+        # Open "swatmf_out_MF_head" file
+        y = ("Monthly", "Yearly") # Remove unnecssary lines
+        filename = "swatmf_out_MF_recharge_monthly"
+        # self.layer = QgsProject.instance().mapLayersByName("mf_nitrate_monthly")[0]
+        with open(os.path.join(wd, filename), "r") as f:
+            data = [x.strip() for x in f if x.strip() and not x.strip().startswith(y)] # Remove blank lines     
+        date = [x.strip().split() for x in data if x.strip().startswith("month:")] # Collect only lines with dates  
+        onlyDate = [x[1] for x in date] # Only date
+        data1 = [x.split() for x in data] # make each line a list
+        dateList = pd.date_range(stdate, periods=len(onlyDate), freq ='ME').strftime("%b-%Y").tolist()
+
+        selectedSdate = 'Jan-2010'
+        selectedEdate = 'Dec-2019'
+        # Reverse step
+        dateSidx = dateList.index(selectedSdate)
+        dateEidx = dateList.index(selectedEdate)
+        dateList_f = dateList[dateSidx:dateEidx+1]
+
+        big_df = pd.DataFrame()
+        datecount = 0
+        for selectedDate in tqdm(dateList_f):
+            # Reverse step
+            dateIdx = dateList.index(selectedDate)
+            #only
+            onlyDate_lookup = onlyDate[dateIdx]
+            dtt = dt.datetime.strptime(selectedDate, "%b-%Y")
+            year = dtt.year
+            layerN = "1"
+            for num, line in enumerate(data1, 1):
+                if ((line[0] == "month:" in line) and (line[1] == onlyDate_lookup in line) and (line[3] == str(year) in line)):
+                    ii = num # Starting line
+            mf_rchs = []
+            hdcount = 0
+            while hdcount < tot_feats:
+                for kk in range(len(data1[ii])):
+                    mf_rchs.append(float(data1[ii][kk]))
+                    hdcount += 1
+                ii += 1
+            s = pd.Series(mf_rchs, name=dt.datetime.strptime(selectedDate, "%b-%Y").strftime("%Y-%m-%d"))
+            big_df = pd.concat([big_df, s], axis=1)
+            datecount +=1
+ 
+        big_df = big_df.T
+        big_df.index = pd.to_datetime(big_df.index)
+        mbig_df = big_df.groupby(big_df.index.month).mean()
+        mbig_df_t = mbig_df.T
+        mbig_df_t["grid_id"] = mbig_df_t.index + 1
+        mbig_df_t.to_csv("mf_rch_avg_mon.csv", index=False)
+        print("finished ...")
 
 
 
 
+
+
+# def plot_tot():
+if __name__ == '__main__':
+    wd = "C:\\Users\\seonggyu.park\\Downloads\\qswatmod_prj\\2nd_cali\\okvg_062320_pest\\SWAT-MODFLOW"
+
+
+
+    m1 = SWATMFout(wd)
+    df =  m1.get_recharge_avg_m_df()
+    print(df)
