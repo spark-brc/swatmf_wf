@@ -23,7 +23,6 @@ opt_files_path = os.path.join(
 foward_path = os.path.dirname(os.path.abspath( __file__ ))
 
 
-
 def create_swatmf_con(
                 prj_dir, 
                 swatmf_model, sim_start, warmup, cal_start, cal_end,
@@ -31,6 +30,9 @@ def create_swatmf_con(
                 baseflow=None,
                 time_step=None,
                 pp_included=None,
+                grids_lyrs=None,
+                avg_grids=None
+
                 # depth_to_water=None, 
                 ):
     """create swatmf.con file containg SWAT-MODFLOW model PEST initial settings
@@ -70,8 +72,11 @@ def create_swatmf_con(
         pp_included = 'n'
     # if depth_to_water is None:
     #     depth_to_water = 'n'
+    if grids_lyrs is None:
+        grids_lyrs = 'n'
 
-
+    if avg_grids is None:
+        avg_grids = 'n'
     col01 = [
         'prj_dir',
         'swatmf_model', 'sim_start', 'warm-up', 'cal_start', 'cal_end',
@@ -79,6 +84,8 @@ def create_swatmf_con(
         'riv_parm', 'baseflow',
         'time_step',
         'pp_included',
+        'grids_lyrs',
+        'avg_grids'
         ]
     col02 = [
         prj_dir,
@@ -87,6 +94,8 @@ def create_swatmf_con(
         riv_parm, baseflow,
         time_step,
         pp_included,
+        grids_lyrs,
+        avg_grids
         ]
     df = pd.DataFrame({'names': col01, 'vals': col02})
 
@@ -112,6 +121,7 @@ def init_setup(prj_dir, swatmfwd, swatwd):
         "model.in",
         "SUFI2_LH_sample.exe",
         "Swat_Edit.exe",
+        "swatmf_rel230922.exe"
         ]
     suffix = ' passed'
     print(" Creating 'main_opt' folder in working directory ...",  end='\r', flush=True)
