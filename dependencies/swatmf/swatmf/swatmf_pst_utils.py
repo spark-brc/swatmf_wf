@@ -341,6 +341,17 @@ def extract_depth_to_water(grid_ids, start_day, end_day, time_step="day"):
 
 
 def extract_depth_to_water_layer(dtw_df, start_day, end_day, time_step="day"):
+    """create depth to water extracted file with layer info
+
+    :param dtw_df: depth to water dataframe created by handler.get_gw_sim function
+    :type dtw_df: dataframe
+    :param start_day: sim startdate
+    :type start_day: str
+    :param end_day: sim enddate
+    :type end_day: str
+    :param time_step: time step, defaults to "day"
+    :type time_step: str, optional
+    """
     if time_step == "day":
         mf_sim = dtw_df[start_day:end_day]
     if time_step == "month":
