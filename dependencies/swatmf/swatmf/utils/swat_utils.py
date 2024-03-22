@@ -165,7 +165,6 @@ class WeatherData(object):
                         fp.write(l+"\n")
 
 
-
     def cvt_tmp_each2(self, output_wd, tmp_nloc, tmp_file=None):
         if tmp_file is None:
             tmp_file = 'Tmp1.Tmp'
@@ -199,3 +198,48 @@ class WeatherData(object):
                 with open(f'TMP_{i+1:03d}.txt', 'w') as fp:
                     for l in abf:
                         fp.write(l+"\n")
+
+class SwatEdit(object):
+    def read_swatcal(self):
+        swatcalfile = "swatcalparms.cal"
+        y = ("#") # Remove unnecssary lines
+        with open(swatcalfile, "r") as f:
+            data = [x.strip() for x in f if x.strip() and not x.strip().startswith(y)] # Remove blank lines     
+        rowsnum = data[0]
+        df = pd.read_csv(swatcalfile, sep=r'\s+',  comment="#", header=1)
+        df = df.iloc[:int(rowsnum)]
+        df['real_val'] = df['VAL'] + df['OFFSET']
+
+        # create model.in
+        with open("model.in", 'w') as f:
+            # f.write("{0:10d} #NP\n".format(mod_df.shape[0]))
+            SFMT_LONG = lambda x: "{0:<50s} ".format(str(x))
+            f.write(df.loc[:, ["NAME", "real_val"]].to_string(
+                                                        col_space=0,
+                                                        formatters=[SFMT_LONG, SFMT_LONG],
+                                                        index=False,
+                                                        header=False,
+                                                        justify="left"))            
+
+
+
+
+if __name__ == '__main__':
+    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
+    wd = "D:\\spark\\swatmf_wf_test\\main_opt"
+    os.chdir(wd)
+    m1 = SwatEdit()
+    m1.read_swatcal()
+
+
+
+    #     sim_stf = pd.read_csv(
+    #                     swatcalfile,
+    #                     delim_whitespace=True,
+    #                     skiprows=9,
+    #                     usecols=[1, 3, 6],
+    #                     names=["date", "filter", "stf_sim"],
+    #                     index_col=0)        
+    
+    # # def create_model_in(self):
+
