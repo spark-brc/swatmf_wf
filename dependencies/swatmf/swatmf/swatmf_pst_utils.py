@@ -189,7 +189,7 @@ def extract_day_stf(channels, start_day, warmup, cali_start_day, cali_end_day):
     for i in channels:
         sim_stf = pd.read_csv(
                         rch_file,
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         skiprows=9,
                         usecols=[1, 3, 6],
                         names=["date", "filter", "stf_sim"],
