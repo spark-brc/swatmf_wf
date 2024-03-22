@@ -229,7 +229,7 @@ if __name__ == '__main__':
     wd = "D:\\spark\\swatmf_wf_test\\main_opt"
     os.chdir(wd)
     m1 = SwatEdit()
-    m1.read_swatcal()
+    m1.read_swatcal() # work same as previous workflow
 
 
 
