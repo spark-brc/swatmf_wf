@@ -8,6 +8,7 @@ import subprocess as sp
 import pandas as pd
 import sys
 import datetime as dt
+from tqdm import tqdm
 
 
 class SwatInit:
@@ -17,8 +18,10 @@ class SwatInit:
     def __init__(self, model_dir):
         # self.output_dir = '/tmp/output_swat'
         # self.temp_dir = '/tmp/swat_runs'
-        os.chdir(model_dir)
+        
         self.model_dir = model_dir
+        os.chdir(model_dir)
+        self.back_dir = os.path.join(self.model_dir, "backup") # should be backup
         self.subbasins = []
         self.hrus = []
         self.param = []
@@ -48,7 +51,6 @@ class SwatInit:
             subbasin_list = []
             route_list = []
             add_list = []
-
             if len(fig_file) == 0:
                 print(
                     'Warning: You must provide the full path to the .fig file to get the subbasins for the watershed. '
@@ -116,8 +118,8 @@ class SwatInit:
 
         # # unzip SWAT model in temp directory
         # input_dir_file = os.path.abspath(model_file)
-        backup_dir = os.path.join(self.model_dir, "backup") # this might be backup folder?
-        temp_updated_dir = os.path.join(self.model_dir, "updated") # this might be backup folder?
+        backup_dir = self.back_dir # this might be backup folder?
+        model_dir = self.model_dir # this might be backup folder?
 
         # if not os.path.exists(model_dir_file):
         #     os.makedirs(model_dir_file)
@@ -135,16 +137,16 @@ class SwatInit:
         # elif platform.system() == 'Darwin':
         #     sp.run(['cp', '-f', swat_dir_file, model_dir_file], check=True)
 
-        # # prepare SWAT input text files
-        # sp.run(['cp', '-r', model_dir_file, output_dir], check=True)
+        # prepare SWAT input text files
+        # sp.run(['cp', '-r', backup_dir, model_dir], check=True)
         # output_dir = os.path.abspath(output_dir + '/' + new_model_name)
         # if not os.path.exists(output_dir):
         #     os.makedirs(output_dir)
 
         # write SWAT input text files        
-        write_new_files(param, subbasins, hrus, backup_dir, temp_updated_dir)        
-        # write_mgt_tables(mgt_table, 'mgt', subbasins_mgt, hrus_mgt, temp_updated_dir)
-        # write_mgt_tables(ops_table, 'ops', subbasins_ops, hrus_ops, temp_updated_dir)
+        write_new_files(param, subbasins, hrus, backup_dir, model_dir)        
+        write_mgt_tables(mgt_table, 'mgt', subbasins_mgt, hrus_mgt, model_dir)
+        write_mgt_tables(ops_table, 'ops', subbasins_ops, hrus_ops, model_dir)
 
         # # remove SWAT model files from temporal directory
         # sp.run(['rm', '-rf', model_dir_file], check=True)
@@ -153,8 +155,7 @@ class SwatInit:
 
         # return output_dir
 
-
-def write_new_files(param_all, subs, hrus, input_dir, output_dir):
+def write_new_files(param_all, subs, hrus, input_dir, model_dir):
     """Write new SWAT text input files based on a list of parameters to be changed.
     input(s):
         param_all = dictionary containing a set of n parameters to be modified. The format is as follows:
@@ -174,8 +175,6 @@ def write_new_files(param_all, subs, hrus, input_dir, output_dir):
 
     # get list of subbasins and hrus ready to write files
     subs, hrus = prepare_subs_hrus(dir_list, subs, hrus)
-    print(f'hrus:{hrus}')
-
     param_list = []
     if len(param_all) < len(subs):
         if len(param_all) == 1:
@@ -198,17 +197,78 @@ def write_new_files(param_all, subs, hrus, input_dir, output_dir):
                                         columns=['value', 'method', 'ext']
                                         )
         exts = param_df.ext.unique().tolist()
-    print(exts)
-        # write_ext_files(param_df, dir_list, sub, hru, exts, input_dir, output_dir)
+        write_ext_files(param_df, dir_list, sub, hru, exts, input_dir, model_dir)
+
+
+def write_mgt_tables(mgt_tables, ext, subs, hrus, output_dir):
+
+    if type(mgt_tables) is not list:
+        mgt_tables = [mgt_tables]
+
+    if (len(mgt_tables) < len(subs)) and (len(mgt_tables) != 0 and len(mgt_tables) != 1):
+        sys.exit('List of management tables must have the same length as subbasins list or be empty')
+
+    dir_list = os.listdir(output_dir)
+
+    # get list of subbasins and hrus ready to write files
+    subs, hrus = prepare_subs_hrus(dir_list, subs, hrus)
+
+    if len(mgt_tables) < len(subs):
+        if len(mgt_tables) == 1:
+            mgt_list = [mgt_tables[0] for _ in subs]
+        elif len(mgt_tables) == 0:
+            mgt_list = [[] for _ in subs]
+    elif (len(mgt_tables) > 1) and (len(mgt_tables) > len(subs)):
+        mgt_list = [mgt_tables[i] for i, _ in enumerate(subs)]
+    else:
+        mgt_list = list(mgt_tables)
+
+    # sort param, subs and hrus according to size of subs
+    subs, hrus, mgt_list = sort_subs_hrus(subs, hrus, mgt_list)
+
+    for i, sub in enumerate(subs):
+        hru = hrus[i]
+        mgt_table = mgt_list[i]
+        if type(mgt_table) == list and len(mgt_table) == 0:
+            break
+        else:
+            write_mgt_files(mgt_table, ext, dir_list, sub, hru, output_dir)
+
+
+def write_mgt_files(mgt_table, ext, dir_list, subbasins, hrus, output_dir):
+    
+    # build reference lists of hru codes
+    hru_ref = ['{:05d}{:04d}'.format(x, y) for i, x in enumerate(subbasins) for y in hrus[i]]
+    
+    # create list of files to change
+    files = ['{part1}.{part2}'.format(part1=x, part2=ext) for x in hru_ref]
+    
+    if ext == 'mgt':
+        table = mgt_table.op_sched
+        ind = 30
+    elif ext == 'ops':
+        table = mgt_table.schedule
+        ind = 1
+    
+    table = [x + '\n' for x in table]
+    
+    for file in files:        
+        with open(os.path.abspath(output_dir + '/' + file), 'r', encoding='ISO-8859-1') as f:
+            data = f.readlines()
+            del data[ind:]
+            data = data + table
+
+        with open(os.path.abspath(output_dir + '/' + file), "w") as f:
+            f.writelines(data)
 
 
 def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output_dir):
     # build reference lists of subbasin and hru codes
     sub_ref = ['{:05d}0000'.format(x) for x in subbasins]
     hru_ref = ['{:05d}{:04d}'.format(x, y) for i, x in enumerate(subbasins) for y in hrus[i]]
-    print(hru_ref)
-    """
-    for ext in exts:
+
+
+    for ext in tqdm(exts):
         # get files in input directory with extension '.ext'
         files_all = [x for x in dir_list if (x.endswith('.{}'.format(ext)) and not x.startswith('output'))]
         param = param_df.loc[(param_df.ext == ext)].to_dict(orient='index')
@@ -242,6 +302,7 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
 
         # modify list of files
         for file in files:
+            print(file)
             with open(os.path.abspath(input_dir + '/' + file), 'r', encoding='ISO-8859-1') as f:
                 data = f.readlines()
                 param_names = list(param.keys())
@@ -273,7 +334,7 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                     data[c] = new_line
             with open(os.path.abspath(output_dir + '/' + file), "w") as f:
                 f.writelines(data)
-    """
+
 
 
 def replace_line(line, value, method, ext, num_format):
@@ -367,12 +428,9 @@ def replace_line(line, value, method, ext, num_format):
                 new_value = [value * x for x in nums]
             elif method == 'add':
                 new_value = [(value + x) for x in nums]
-
             part0 = ''.join(['{:{}}'.format(x, num_format) for x in new_value])
-
             if len(parts) < 2:
                 parts.append('\n')
-
             new_line = '{part1}|{part2}'.format(part1=part0, part2=parts[1])
 
     else:  # generic case (only single values; array of values requires an especial case)
@@ -407,7 +465,6 @@ def sort_subs_hrus(subs, hrus, params):
     hrus2 = [hrus[i] for i in ind]
     params2 = [params[i] for i in ind]
     return subs2, hrus2, params2
-
 
 
 def prepare_subs_hrus(dir_list, subs, hrus):
@@ -535,26 +592,25 @@ def is_int(s):
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
     model_dir = "/Users/seonggyu.park/Documents/projects/tools/test/Honeyoy_Model_manual"
+    model_dir = "D:\\tmp\\swatmf_dir"
     m1 = SwatInit(model_dir)
-    m1.fig_file = "fig.fig"
-
-    subbasins_filename = '/Users/seonggyu.park/Documents/projects/tools/swat-pytools/resources/csv_files/subbasins.csv'
-    subbasins = pd.read_csv(subbasins_filename, header=None).iloc[:, 0].to_list()
+    subbasins_filename = 'D:\\Projects\\Tools\\swat-pytools\\resources\\csv_files\\subbasins.csv'
+    subbasins = [2,3,4]
 
     # Step 2: Parameters to change
 
     params = {'ICALEN': [1, 'replace', 'cio'],
             'BIOMIX': [0.22, 'replace', 'mgt'],
             'CN2': [-0.21, 'multiply', 'mgt'],
-            # 'CANMX': [1.67, 'replace', 'hru'],
-            # 'ESCO': [0.70, 'replace', 'hru'],
-            # 'EPCO': [0.0059, 'replace', 'hru'],
-            'GW_DELAY': [6.11, 'replace', 'gw'],
-            'ALPHA_BF': [0.83, 'replace', 'gw'],
-            'GWQMN': [438, 'replace', 'gw'],
-            'GW_REVAP': [0.16, 'replace', 'gw'],
-            'REVAPMN': [438, 'replace', 'gw'],
-            'RCHRG_DP': [0.50, 'replace', 'gw'],
+            'CANMX': [1.67, 'replace', 'hru'],
+            'ESCO': [0.70, 'replace', 'hru'],
+            'EPCO': [0.0059, 'replace', 'hru'],
+            # 'GW_DELAY': [6.11, 'replace', 'gw'],
+            # 'ALPHA_BF': [0.83, 'replace', 'gw'],
+            # 'GWQMN': [438, 'replace', 'gw'],
+            # 'GW_REVAP': [0.16, 'replace', 'gw'],
+            # 'REVAPMN': [438, 'replace', 'gw'],
+            # 'RCHRG_DP': [0.50, 'replace', 'gw'],
             'CH_N2': [0.12, 'replace', 'rte'],
             'CH_K2': [6.45, 'replace', 'rte'],
             'SOL_AWC': [-0.21, 'multiply', 'sol'],
@@ -564,7 +620,7 @@ if __name__ == '__main__':
     m1.subbasins = [subbasins]
     m1.prepare_swat()
     # swat_model.run_swat()
-    print(m1.param)
+
 
 
 
