@@ -79,9 +79,19 @@ class SwatInit:
                     subbasins = subbasin_root(inflow, subbasin_list, route_list, add_list, subbasins)
                     # append to general list
                     subbasins_list.append(subbasins)
-                print(subbasin_list)
         self.subbasins = subbasins_list
         # return subbasin_list
+
+    def read_swat_pars_db(self):
+        swat_cal_pars = pd.read_csv("swat_pars.db.csv", comment="#")
+        cal_pars = swat_cal_pars.loc[swat_cal_pars["flag"]==1]
+        return cal_pars
+
+    def create_swat_pars_cal(self):
+        df = self.read_swat_pars_db()
+        
+
+
 
     def prepare_swat(self):
         # get attributes from SWAT configuration object
@@ -201,13 +211,10 @@ def write_new_files(param_all, subs, hrus, input_dir, model_dir):
 
 
 def write_mgt_tables(mgt_tables, ext, subs, hrus, output_dir):
-
     if type(mgt_tables) is not list:
         mgt_tables = [mgt_tables]
-
     if (len(mgt_tables) < len(subs)) and (len(mgt_tables) != 0 and len(mgt_tables) != 1):
         sys.exit('List of management tables must have the same length as subbasins list or be empty')
-
     dir_list = os.listdir(output_dir)
 
     # get list of subbasins and hrus ready to write files
@@ -266,14 +273,13 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
     # build reference lists of subbasin and hru codes
     sub_ref = ['{:05d}0000'.format(x) for x in subbasins]
     hru_ref = ['{:05d}{:04d}'.format(x, y) for i, x in enumerate(subbasins) for y in hrus[i]]
-
-
-    for ext in tqdm(exts):
+    for ext in exts:
         # get files in input directory with extension '.ext'
         files_all = [x for x in dir_list if (x.endswith('.{}'.format(ext)) and not x.startswith('output'))]
         param = param_df.loc[(param_df.ext == ext)].to_dict(orient='index')
         n_line = []
         txtformat = []
+        print(f"  modifying '{ext}' obj ...")
         if ext == 'sol':
             var_list = ['SNAM', 'HYDGRP', 'SOL_ZMX', 'ANION_EXCL', 'SOL_CRK', 'TEXTURE',
                        'SOL_Z', 'SOL_BD', 'SOL_AWC', 'SOL_K', 'SOL_CBN', 'SOL_CLAY', 'SOL_SILT',
@@ -299,10 +305,9 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                 files = ['{part1}.{part2}'.format(part1=x, part2=ext) for x in hru_ref]
         else:
             files = files_all  # this is the case of .bsn and .wwq
-
+        
         # modify list of files
-        for file in files:
-            print(file)
+        for file in tqdm(files):
             with open(os.path.abspath(input_dir + '/' + file), 'r', encoding='ISO-8859-1') as f:
                 data = f.readlines()
                 param_names = list(param.keys())
@@ -376,7 +381,6 @@ def replace_line(line, value, method, ext, num_format):
                 n = int(num_format.split('.')[0])
                 # split string of numbers based on N and convert to float
                 nums = [float(num[i:i + n]) for i in range(0, len(num), n)]
-
                 if method == 'replace':
                     new_value = [value for _ in nums]
                 elif method == 'multiply':
@@ -385,12 +389,9 @@ def replace_line(line, value, method, ext, num_format):
                     new_value = [value * x for x in nums]
                 elif method == 'add':
                     new_value = [(value + x) for x in nums]
-
                 part1 = ''.join(['{:{}}'.format(x, num_format) for x in new_value])
-
             else:  # change strings
                 part1 = ' {:13s}'.format(value)
-
         new_line = '{part1}:{part2}\n'.format(part1=parts[0], part2=part1)
 
     elif ext == 'rte':  # especial case for routing (some parameters can be an array of values)
@@ -571,7 +572,6 @@ def is_float(s):
     except ValueError:
         return False
 
-
 def is_int(s):
     """Determine whether a string can be converted to an integer number.
     input(s):
@@ -587,9 +587,6 @@ def is_int(s):
 
 
 
-
-
-
 # def plot_tot():
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
@@ -597,30 +594,35 @@ if __name__ == '__main__':
     model_dir = "D:\\tmp\\swatmf_dir"
     m1 = SwatInit(model_dir)
     subbasins_filename = 'D:\\Projects\\Tools\\swat-pytools\\resources\\csv_files\\subbasins.csv'
-    subbasins = [2,3,4]
+    subbasins = [i for i in range(1, 198)]
 
     # Step 2: Parameters to change
 
-    params = {'ICALEN': [1, 'replace', 'cio'],
-            'BIOMIX': [0.22, 'replace', 'mgt'],
-            'CN2': [-0.21, 'multiply', 'mgt'],
-            'CANMX': [1.67, 'replace', 'hru'],
-            'ESCO': [0.70, 'replace', 'hru'],
-            'EPCO': [0.0059, 'replace', 'hru'],
-            # 'GW_DELAY': [6.11, 'replace', 'gw'],
-            # 'ALPHA_BF': [0.83, 'replace', 'gw'],
-            # 'GWQMN': [438, 'replace', 'gw'],
-            # 'GW_REVAP': [0.16, 'replace', 'gw'],
-            # 'REVAPMN': [438, 'replace', 'gw'],
-            # 'RCHRG_DP': [0.50, 'replace', 'gw'],
-            'CH_N2': [0.12, 'replace', 'rte'],
-            'CH_K2': [6.45, 'replace', 'rte'],
-            'SOL_AWC': [-0.21, 'multiply', 'sol'],
-            'SURLAG': [1.10, 'replace', 'bsn']}
+    # params = {'ICALEN': [1, 'replace', 'cio'],
+    #         'BIOMIX': [0.22, 'replace', 'mgt'],
+    #         'CN2': [-0.21, 'multiply', 'mgt'],
+    #         'CANMX': [1.67, 'replace', 'hru'],
+    #         'ESCO': [0.70, 'replace', 'hru'],
+    #         'EPCO': [0.0059, 'replace', 'hru'],
+    #         # 'GW_DELAY': [6.11, 'replace', 'gw'],
+    #         # 'ALPHA_BF': [0.83, 'replace', 'gw'],
+    #         # 'GWQMN': [438, 'replace', 'gw'],
+    #         # 'GW_REVAP': [0.16, 'replace', 'gw'],
+    #         # 'REVAPMN': [438, 'replace', 'gw'],
+    #         # 'RCHRG_DP': [0.50, 'replace', 'gw'],
+    #         'CH_N2': [0.12, 'replace', 'rte'],
+    #         'CH_K2': [6.45, 'replace', 'rte'],
+    #         'SOL_AWC': [-0.21, 'multiply', 'sol'],
+    #         'SURLAG': [1.10, 'replace', 'bsn']}
 
-    m1.param = [params]
-    m1.subbasins = [subbasins]
-    m1.prepare_swat()
+    pars = m1.create_swat_pars_cal()
+    print(pars)
+
+
+
+    # m1.param = [params]
+    # m1.subbasins = [subbasins]
+    # m1.prepare_swat()
     # swat_model.run_swat()
 
 

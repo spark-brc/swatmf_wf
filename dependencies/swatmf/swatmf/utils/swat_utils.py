@@ -222,18 +222,58 @@ class SwatEdit(object):
                                                         header=False,
                                                         justify="left"))
 
-    def modify_sol(self):
-          
+def modify_sol(back_dir, output_dir):
+
+    ext = "sol"
+    dir_list = os.listdir(back_dir)
+    files_all = [
+                x for x in dir_list if (x.endswith('.{}'.format(ext)) and 
+                not x.startswith('output'))
+                ]
+    
+    var_list = ['SNAM', 'HYDGRP', 'SOL_ZMX', 'ANION_EXCL', 'SOL_CRK', 'TEXTURE',
+                'SOL_Z', 'SOL_BD', 'SOL_AWC', 'SOL_K', 'SOL_CBN', 'SOL_CLAY', 'SOL_SILT',
+                'SOL_SAND', 'SOL_ROCK', 'SOL_ALB', 'USLE_K', 'SOL_EC', 'SOL_CAL', 'SOL_PH']
+    n_line = 9
+    txtformat = '12.2f'
+                    
+    for fl in tqdm(files_all):
+        with open(os.path.join(back_dir, fl), 'r', encoding='ISO-8859-1') as f:
+            data = f.readlines()
+        line = data[n_line]
+        parts = line.split(':')
+        num = parts[1].strip()
+        nums = num.split()
+        # change percentage to ratio
+        nums2 = []
+        for nm in nums:
+            if float(nm) > 1:
+                nm = float(nm)/100
+                nums2.append(nm)
+            else:
+                nums2.append(nm)
+
+
+
+        part1 = ''.join(['{:{}}'.format(float(x), txtformat) for x in nums2])
+        new_line = '{part1}:{part2}\n'.format(part1=parts[0], part2=part1)
+        data[n_line] = new_line
+        with open(os.path.abspath(output_dir + '/' + fl), "w") as f:
+            f.writelines(data)
+    
+
+
+
 
 
 
 
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    wd = "D:\\spark\\swatmf_wf_test\\main_opt"
-    os.chdir(wd)
-    m1 = SwatEdit()
-    m1.read_swatcal() # work same as previous workflow
+    wd = "D:\\tmp\\swatmf_dir\\backup"
+    outwd = "D:\\tmp\\sols_modified"
+
+    modify_sol(wd, outwd)
 
 
 
