@@ -326,11 +326,13 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                                     break
                                 else:
                                     c = c + 1
-                    new_line = replace_line(data[c],
-                                           param[param_name]['value'],
-                                           param[param_name]['method'],
-                                           param[param_name]['ext'],
-                                           num_format)
+                    new_line = replace_line(
+                                            data[c],
+                                            param[param_name]['value'],
+                                            param[param_name]['method'],
+                                            param[param_name]['ext'],
+                                            num_format
+                                            )
                     data[c] = new_line
             with open(os.path.abspath(output_dir + '/' + file), "w") as f:
                 f.writelines(data)

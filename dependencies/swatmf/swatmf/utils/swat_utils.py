@@ -200,6 +200,7 @@ class WeatherData(object):
                         fp.write(l+"\n")
 
 class SwatEdit(object):
+
     def read_swatcal(self):
         swatcalfile = "swatcalparms.cal"
         y = ("#") # Remove unnecssary lines
@@ -219,7 +220,10 @@ class SwatEdit(object):
                                                         formatters=[SFMT_LONG, SFMT_LONG],
                                                         index=False,
                                                         header=False,
-                                                        justify="left"))            
+                                                        justify="left"))
+
+    def modify_sol(self):
+          
 
 
 
