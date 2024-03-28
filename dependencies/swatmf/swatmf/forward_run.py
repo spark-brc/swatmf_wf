@@ -128,8 +128,8 @@ if __name__ == '__main__':
         extract_gw_level_results(grids, sim_start, cal_end)
 
     if swatmf_con.loc['grids_lyrs', 'vals'] !='n':
-        grids = swatmf_con.loc['grids_lyrs','vals'].strip('][').split(', ')
-        grids = [int(i) for i in grids] 
+        # grids = swatmf_con.loc['grids_lyrs','vals'].strip('][').split(', ')
+        # grids = [int(i) for i in grids] 
         m1 = SWATMFout(wd)
         df =  m1.get_gw_sim()
         for col in df.columns:
@@ -137,6 +137,7 @@ if __name__ == '__main__':
                             '{}.txt'.format(col), sep='\t', encoding='utf-8',
                             index=True, header=False, float_format='%.7e'
                             )
+        print("GW sim extraction finished ...")
 
     # NOTE: this is a temporary function
     if swatmf_con.loc['avg_grids', 'vals'] != 'n':
@@ -147,8 +148,3 @@ if __name__ == '__main__':
         extract_avg_depth_to_water(avg_grids, sim_start, avg_stdate, avg_eddate)
 
     print(wd)
-
-
-
-
-
