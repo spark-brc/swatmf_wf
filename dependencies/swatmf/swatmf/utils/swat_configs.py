@@ -341,8 +341,7 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
         
         # modify list of files
         # for file in tqdm(files):
-        for file in files:
-            print(file)
+        for file in tqdm(files):
             with open(os.path.abspath(input_dir + '/' + file), 'r', encoding='ISO-8859-1') as f:
                 data = f.readlines()
                 param_names = list(param.keys())
@@ -415,9 +414,9 @@ def replace_line(line, value, method, ext, num_format):
                 # get the number of positions from num_format
                 n = int(num_format.split('.')[0])
                 # split string of numbers based on N and convert to float
-                nums = [float(num[i:i + n]) for i in range(0, len(num), n)]
-                # nums = num.split()
-                # nums = [float(num_) for num_ in nums]
+                # nums = [float(num[i:i + n]) for i in range(0, len(num), n)]
+                nums = num.split()
+                nums = [float(num_) for num_ in nums]
                 if method == 'replace':
                     new_value = [value for _ in nums]
                 elif method == 'multiply':
@@ -641,11 +640,13 @@ if __name__ == '__main__':
     # print(pars)
 
     new_parms = m1.read_new_parms()
+    # print(new_parms)
+
 
     m1.param = [new_parms]
     m1.subbasins = [subbasins]
     m1.update_swat_parms()
-    # swat_model.run_swat()
+    # # swat_model.run_swat()
 
 
 

@@ -11,6 +11,7 @@ import subprocess
 from swatmf import swatmf_pst_par, utils
 from swatmf import swatmf_pst_utils
 from swatmf.handler import SWATMFout
+from swatmf.utils import swat_configs
 
 
 wd = os.getcwd()
@@ -35,12 +36,12 @@ def modify_hk_sy_pars_pp(pp_included):
         outfile = i + '.ref'
         pyemu.utils.geostats.fac2real(i, factors_file=i+'.fac', out_file=outfile)
 
-def execute_swat_edit():
-    des = "modifying SWAT parameters"
-    # time_stamp(des)
-    # pyemu.os_utils.run('Swat_Edit.exe', cwd='.')
-    p = subprocess.Popen('Swat_Edit.exe' , cwd = '.')
-    p.wait()
+# def execute_swat_edit():
+#     des = "modifying SWAT parameters"
+#     # time_stamp(des)
+#     # pyemu.os_utils.run('Swat_Edit.exe', cwd='.')
+#     p = subprocess.Popen('Swat_Edit.exe' , cwd = '.')
+#     p.wait()
 
 def execute_swatmf():
     des = "running model"
@@ -104,8 +105,16 @@ if __name__ == '__main__':
         pp_included = swatmf_con.loc['pp_included','vals'].strip('][').split(', ')
         pp_included = [i.replace("'", "").strip() for i in pp_included]  
         modify_hk_sy_pars_pp(pp_included)
+    
+    # update SWAT parameters
+    m1 = swat_configs.SwatEdit(wd)
+    subbasins = [i for i in range(1, 198)] # NOTE: this is a hard code for koksilah
+    new_parms = m1.read_new_parms()
+    m1.param = [new_parms]
+    m1.subbasins = [subbasins]
+    m1.update_swat_parms()
+
     # execute model
-    execute_swat_edit()
     execute_swatmf()
     # extract sims
     # if swatmf_con.loc['cha_file', 'vals'] != 'n' and swatmf_con.loc['fdc', 'vals'] != 'n':
