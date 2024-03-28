@@ -16,6 +16,7 @@ pyemu.egg-info
 build
 dist
 .trash/
+.DS_Store
 *.code-workspace
 
 # SWAT-MODFLOW outputs
