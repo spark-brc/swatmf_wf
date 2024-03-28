@@ -11,7 +11,7 @@ import datetime as dt
 from tqdm import tqdm
 
 
-class SwatInit:
+class SwatEdit:
     """ create object with SWAT settings for running a model
     """
 
@@ -89,21 +89,53 @@ class SwatInit:
 
     def create_swat_pars_cal(self):
         df = self.read_swat_pars_db()
+        # df['chg_type'] = df['chg_type'].astype(str)
+        # df['chg_type'].astype(str, inplace=True)
+        # df["chg_type"].fillna("multiply", inplace=True)
+        df.fillna({"chg_type":"multiply"}, inplace=True)
+        df["chg_val"] = 0
+        SFMT_SHORT = lambda x: "{0:<10s} ".format(str(x))
+        SFMT_LONG = lambda x: "{0:<20s} ".format(str(x))
+        formatters = [SFMT_LONG] + [SFMT_SHORT]*2 + [SFMT_LONG] + [SFMT_SHORT]*2 
         
+        # create model.in
+        with open("swat_pars.cal", 'w') as f:
+            # f.write("{0:10d} #NP\n".format(mod_df.shape[0]))
+            f.write("# this is test...\n")
+            f.write(
+                df.loc[:, ["parnam", "obj_type", "chg_type", "chg_val", "lb", "ub"
+                           ]].to_string(
+                                        col_space=2,
+                                        formatters=formatters,
+                                        index=False,
+                                        header=True,
+                                        justify="left"))
+        df["chg_val"] = df.parnam.apply(lambda x: " ~   {0:15s}   ~".format(x))
+        with open("swat_pars.cal.tpl", 'w') as tplf:
+            tplf.write("ptf ~\n")
+            tplf.write("# this is test...\n")
+            tplf.write(
+                df.loc[:, ["parnam", "obj_type", "chg_type", "chg_val", "lb", "ub"
+                           ]].to_string(
+                                        col_space=2,
+                                        formatters=formatters,
+                                        index=False,
+                                        header=True,
+                                        justify="left"))
+
+    def read_new_parms(self):
+        df = pd.read_csv("swat_pars.cal", sep=r"\s+", comment="#")
+        df = df[["parnam", "chg_val", "chg_type","obj_type"]]
+        dic  = df.set_index('parnam').T.to_dict('list')
+        return dic
 
 
 
-    def prepare_swat(self):
+    def update_swat_parms(self):
         # get attributes from SWAT configuration object
         param = self.param
         subbasins = self.subbasins
         hrus = self.hrus
-        # output_dir = self.output_dir
-        # temp_dir = self.temp_dir
-        # model_file = self.model_file
-        # new_model_name = self.new_model_name
-        # swat_dir = self.swat_dir
-        # swat_exec_name = self.swat_exec_name
         drainmod = self.drainmod
         mgt_table = self.mgt_table
         subbasins_mgt = self.subbasins_mgt
@@ -207,6 +239,7 @@ def write_new_files(param_all, subs, hrus, input_dir, model_dir):
                                         columns=['value', 'method', 'ext']
                                         )
         exts = param_df.ext.unique().tolist()
+        # exts = 
         write_ext_files(param_df, dir_list, sub, hru, exts, input_dir, model_dir)
 
 
@@ -307,7 +340,9 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
             files = files_all  # this is the case of .bsn and .wwq
         
         # modify list of files
-        for file in tqdm(files):
+        # for file in tqdm(files):
+        for file in files:
+            print(file)
             with open(os.path.abspath(input_dir + '/' + file), 'r', encoding='ISO-8859-1') as f:
                 data = f.readlines()
                 param_names = list(param.keys())
@@ -381,6 +416,8 @@ def replace_line(line, value, method, ext, num_format):
                 n = int(num_format.split('.')[0])
                 # split string of numbers based on N and convert to float
                 nums = [float(num[i:i + n]) for i in range(0, len(num), n)]
+                # nums = num.split()
+                # nums = [float(num_) for num_ in nums]
                 if method == 'replace':
                     new_value = [value for _ in nums]
                 elif method == 'multiply':
@@ -592,37 +629,22 @@ if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
     model_dir = "/Users/seonggyu.park/Documents/projects/tools/test/Honeyoy_Model_manual"
     model_dir = "D:\\tmp\\swatmf_dir"
-    m1 = SwatInit(model_dir)
+    m1 = SwatEdit(model_dir)
     subbasins_filename = 'D:\\Projects\\Tools\\swat-pytools\\resources\\csv_files\\subbasins.csv'
     subbasins = [i for i in range(1, 198)]
 
     # Step 2: Parameters to change
 
-    # params = {'ICALEN': [1, 'replace', 'cio'],
-    #         'BIOMIX': [0.22, 'replace', 'mgt'],
-    #         'CN2': [-0.21, 'multiply', 'mgt'],
-    #         'CANMX': [1.67, 'replace', 'hru'],
-    #         'ESCO': [0.70, 'replace', 'hru'],
-    #         'EPCO': [0.0059, 'replace', 'hru'],
-    #         # 'GW_DELAY': [6.11, 'replace', 'gw'],
-    #         # 'ALPHA_BF': [0.83, 'replace', 'gw'],
-    #         # 'GWQMN': [438, 'replace', 'gw'],
-    #         # 'GW_REVAP': [0.16, 'replace', 'gw'],
-    #         # 'REVAPMN': [438, 'replace', 'gw'],
-    #         # 'RCHRG_DP': [0.50, 'replace', 'gw'],
-    #         'CH_N2': [0.12, 'replace', 'rte'],
-    #         'CH_K2': [6.45, 'replace', 'rte'],
-    #         'SOL_AWC': [-0.21, 'multiply', 'sol'],
-    #         'SURLAG': [1.10, 'replace', 'bsn']}
-
-    pars = m1.create_swat_pars_cal()
-    print(pars)
 
 
+    # pars = m1.read_new_parms()
+    # print(pars)
 
-    # m1.param = [params]
-    # m1.subbasins = [subbasins]
-    # m1.prepare_swat()
+    new_parms = m1.read_new_parms()
+
+    m1.param = [new_parms]
+    m1.subbasins = [subbasins]
+    m1.update_swat_parms()
     # swat_model.run_swat()
 
 
