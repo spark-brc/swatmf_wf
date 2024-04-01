@@ -14,7 +14,6 @@ from tqdm import tqdm
 class SwatEdit:
     """ create object with SWAT settings for running a model
     """
-
     def __init__(self, model_dir):
         # self.output_dir = '/tmp/output_swat'
         # self.temp_dir = '/tmp/swat_runs'
@@ -375,7 +374,6 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                     data[c] = new_line
             with open(os.path.abspath(output_dir + '/' + file), "w") as f:
                 f.writelines(data)
-
 
 
 def replace_line(line, value, method, ext, num_format):
