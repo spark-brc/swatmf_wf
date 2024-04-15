@@ -11,6 +11,7 @@ import numpy as np
 import math
 import datetime as dt
 from tqdm import tqdm
+from swatmf import analyzer
 
 
 # NOTE: swat output handler
@@ -335,15 +336,29 @@ class SWATMFout(object):
 
 
 
+def okvg_temp():
+    wd = "C:\\Users\\seonggyu.park\\Downloads\\qswatmod_prj\\2nd_cali\\okvg_062320_pest\\SWAT-MODFLOW"
+    m1 = SWATMFout(wd)
+    df =  m1.get_recharge_avg_m_df()
+    print(df)
+
+
+def read_morris_msn(wd, pst_name):
+    df = pd.read_csv(
+            os.path.join(wd, pst_name.replace(".pst",".msn")),
+            index_col='parameter_name'
+            )
+    # df.loc[df['sen_std_dev'].str.contains('-nan'), 'sen_std_dev'] = 0
+    # df = df.astype(float)
+    print(df) 
+    return df 
+
 
 
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "C:\\Users\\seonggyu.park\\Downloads\\qswatmod_prj\\2nd_cali\\okvg_062320_pest\\SWAT-MODFLOW"
-
-
-
-    m1 = SWATMFout(wd)
-    df =  m1.get_recharge_avg_m_df()
-    print(df)
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_morris"
+    pst_name = "koki_zon_rw_morris.pst"
+    # read_morris_msn(wd, pst_name)
+    analyzer.plot_sen_morris(read_morris_msn(wd, pst_name))

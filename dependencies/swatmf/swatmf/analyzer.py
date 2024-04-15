@@ -11,7 +11,8 @@ import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
-from swatmf.handler import SWATMFout
+from swatmf import handler
+import pyemu
 
 
 
@@ -823,35 +824,41 @@ def plot_tseries_ensembles(
     # fig.tight_layout()
     plt.show()
 
+    
+def get_par_offset(pst):
+    pars = pst.parameter_data.copy()
+    pars = pars.loc[:, ["parnme", "offset"]]
+    return pars
 
-def plot_prior_posterior_par_hist(prior_df, post_df, sel_pars, width=7, height=5, ncols=3):
+def plot_prior_posterior_par_hist(
+                    pst, prior_df, post_df, sel_pars,
+                    width=7, height=5, ncols=3):
     nrows = math.ceil(len(sel_pars)/ncols)
+    pars_info = get_par_offset(pst)
     fig, axes = plt.subplots(figsize=(width, height), nrows=nrows, ncols=ncols)
     ax1 = fig.add_subplot(111, frameon=False)
     ax1 = plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
     for i, ax in enumerate(axes.flat):
         if i<len(sel_pars):
             colnam = sel_pars['parnme'].tolist()[i]
-            ax.hist(prior_df.loc[:, colnam].values,
+            offset = pars_info.loc[colnam, "offset"]
+            ax.hist(prior_df.loc[:, colnam].values + offset,
                     bins=np.linspace(
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0], 
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0], 20),
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0] + offset, 
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0] + offset , 20),
                     color = "gray", alpha=0.5, density=True,
                     label="Prior"
             )
-            y, x, _ = ax.hist(post_df.loc[:, colnam].values,
+            y, x, _ = ax.hist(post_df.loc[:, colnam].values + offset,
                     bins=np.linspace(
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0], 
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0], 20), 
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0] + offset, 
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0] + offset, 20), 
                      alpha=0.5, density=True, label="Posterior"
             )
             ax.set_ylabel(colnam)
             ax.set_yticks([])
     plt.xlabel("Parameter range")
     plt.show()
-
-
-
 
 # scratches for QSWATMOD
 # data comes from hanlder module and SWATMFout class
@@ -1183,48 +1190,225 @@ def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw
     std_plot(ax3, std_df, viz_ts)
     plt.show()
 
+def plot_sen_morris(df):
+    df = df.loc[df.sen_mean_abs>1e-6,:]
+    # df.loc[:,["sen_mean_abs","sen_std_dev"]].plot(kind="bar", figsize=(9,3), fontsize=12)
+    #ax = plt.gca()
+    #ax.set_ylim(1,ax.get_ylim()[1]*1.1)
+    # plt.yscale('log');
+    fig,ax = plt.subplots(1,1,figsize=(6,5))
+    swat_df = df.loc[df["pargp"]=="swat"]
+    hk_df = df.loc[df["pargp"]=="hk"]
+    ss_df = df.loc[df["pargp"]=="ss"]
+    sy_df = df.loc[df["pargp"]=="sy"]
+    
+    ax.scatter(swat_df.sen_mean_abs,swat_df.sen_std_dev,marker="^",s=80,c="r", alpha=0.5, label="swat")
+    ax.scatter(hk_df.sen_mean_abs,hk_df.sen_std_dev,marker="s",s=80,c="b", alpha=0.5, label="hy")
+    ax.scatter(ss_df.sen_mean_abs,ss_df.sen_std_dev,marker="o",s=80,c="g", alpha=0.5, label="ss")
+    ax.scatter(sy_df.sen_mean_abs,sy_df.sen_std_dev,marker="x",s=80,c="k", alpha=0.5, label="sy")
 
+
+    # tmp_df = tmp_df.iloc[:8]
+    for x,y,n in zip(df.sen_mean_abs,df.sen_std_dev,df.index):
+        if x > 1000000:
+            ax.text(x,y,n, fontsize=12)
+    mx = max(ax.get_xlim()[1],ax.get_ylim()[1])
+    mn = min(ax.get_xlim()[0],ax.get_ylim()[0])
+    ax.plot([mn,mx],[mn,mx],"k--", alpha=0.3)
+    ax.set_ylim(mn,mx)
+    ax.set_xlim(mn,mx)
+    ax.grid()
+    ax.set_ylabel(r"$\sigma$", fontsize=12)
+    ax.set_xlabel(r"$\mu^*$", fontsize=12)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=12, loc="lower right")
+    plt.tight_layout()  
+    plt.show()  
 
 # def ext_dtw():
 
 
+def get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=None):
+    obs = pst.observation_data.copy()
+    time_col = []
+    for i in range(len(obs)):
+        time_col.append(obs.iloc[i, 0][-8:])
+    obs['time'] = time_col
+    obs['time'] = pd.to_datetime(obs['time'])
+    # print(pt_oe.loc["4"])
+    if bestrel_idx is not None:
+        df = pd.DataFrame(
+            {'date':obs['time'],
+            'obd':obs["obsval"],
+            'pr_min': pr_oe.min(),
+            'pr_max': pr_oe.max(),
+            'pt_min': pt_oe.min(),
+            'pt_max': pt_oe.max(),
+            'best_rel': pt_oe.loc[str(bestrel_idx)],
+            'obgnme': obs['obgnme'],
+            }
+            )
+    else:
+        df = pd.DataFrame(
+            {'date':obs['time'],
+            'obd':obs["obsval"],
+            'pr_min': pr_oe.min(),
+            'pr_max': pr_oe.max(),
+            'pt_min': pt_oe.min(),
+            'pt_max': pt_oe.max(),
+            'obgnme': obs['obgnme'],
+            }
+            )
+    df.set_index('date', inplace=True)
+    return df
+
+
+def plot_fill_between_ensembles(
+        df, 
+        width=12, height=4,
+        caldates=None,
+        valdates=None,
+        size=None,
+        pcp_df=None,
+        bestrel_idx=None,
+        ):
+    """plot time series of prior/posterior predictive uncertainties
+
+    :param df: dataframe of prior/posterior created by get_pr_pt_df function
+    :type df: dataframe
+    :param width: plot width, defaults to 12
+    :type width: int, optional
+    :param height: plot height, defaults to 4
+    :type height: int, optional
+    :param caldates: calibration start and end dates, defaults to None
+    :type caldates: list, optional
+    :param valdates: validation start and end dates, defaults to None
+    :type valdates: list, optional
+    :param size: symbol size, defaults to None
+    :type size: int, optional
+    :param pcp_df: dataframe of precipitation, defaults to None
+    :type pcp_df: dataframe, optional
+    :param bestrel_idx: realization index, defaults to None
+    :type bestrel_idx: string, optional
+    """
+    if size is None:
+        size = 30
+    fig, ax = plt.subplots(figsize=(width,height))
+    # x_values = df.loc[:, "newtime"].values
+    x_values = df.index.values
+    if caldates is not None:
+        caldf = df[caldates[0]:caldates[1]]
+        valdf = df[valdates[0]:valdates[1]]
+        ax.fill_between(
+            df.index.values, df.loc[:, 'pr_min'].values, df.loc[:, 'pr_max'].values, 
+            facecolor="0.5", alpha=0.4, label="Prior")
+        ax.fill_between(
+            caldf.index.values, caldf.loc[:, 'pt_min'].values, caldf.loc[:, 'pt_max'].values, 
+            facecolor="g", alpha=0.4, label="Posterior")
+        ax.plot(caldf.index.values, caldf.loc[:, 'best_rel'].values, c='g', lw=1, label="calibrated")
+        ax.fill_between(
+            valdf.index.values, valdf.loc[:, 'pt_min'].values, valdf.loc[:, 'pt_max'].values, 
+            facecolor="m", alpha=0.4, label="Forecast")        
+        ax.scatter(
+            df.index.values, df.loc[:, 'obd'].values, 
+            color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
+        ax.plot(valdf.index.values, valdf.loc[:, 'best_rel'].values, c='m', lw=1, label="validated")
+    else:
+        ax.fill_between(
+            x_values, df.loc[:, 'pr_min'].values, df.loc[:, 'pr_max'].values, 
+            facecolor="0.5", alpha=0.4, label="Prior")
+        ax.fill_between(
+            x_values, df.loc[:, 'pt_min'].values, df.loc[:, 'pt_max'].values, 
+            facecolor="g", alpha=0.4, label="Posterior")
+        # ax.plot(x_values, df.loc[:, 'best_rel'].values, c='g', lw=1, label="calibrated")
+        ax.scatter(
+            x_values, df.loc[:, 'obd'].values, 
+            color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
+    if pcp_df is not None:
+        # pcp_df.index.freq = None
+        ax2=ax.twinx()
+        ax2.bar(
+            pcp_df.index, pcp_df.loc[:, "pcpmm"].values, label='Precipitation',
+            width=20 ,
+            color="blue", 
+            align='center', 
+            alpha=0.5
+            )
+        ax2.set_ylabel("Precipitation $(mm/month)$",fontsize=12)
+        ax2.invert_yaxis()
+        ax2.set_ylim(pcp_df.loc[:, "pcpmm"].max()*3, 0)
+        # ax.set_ylabel("Stream Discharge $(m^3/day)$",fontsize=14)
+        ax2.tick_params(axis='y', labelsize=12)
+    # ax.axvline(datetime.datetime(2016,12,31), linestyle="--", color='k', alpha=0.3)
+    # ax.set_xlabel(r"Exceedence [%]", fontsize=12)
+    # ax.set_ylabel(r"Monthly irrigation $(mm/month)$", fontsize=12)
+    ax.set_ylabel(r"Daily streamflow $(m^3/s)$", fontsize=12)
+    ax.margins(0.01)
+    ax.tick_params(axis='both', labelsize=12)
+    # ax.set_ylim(0, df.max().max()*1.5)
+    # ax.set_ylim(0, 800)
+    # ax.xaxis.set_major_locator(mdates.YearLocator(1))
+    # ask matplotlib for the plotted objects and their labels
+    lines, labels = ax.get_legend_handles_labels()
+    # lines2, labels2 = ax2.get_legend_handles_labels()
+    order = [0,1,2,3]
+    # plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order])
+    # fig.legend(
+    #     [tlines[idx] for idx in order],[tlables[idx] for idx in order],
+    #     fontsize=10,
+    #     loc = 'lower center',
+    #     bbox_to_anchor=(0.5, -0.08),
+    #     ncols=7)
+
+    tlables = labels
+    tlines = lines
+ 
+
+    fig.legend(fontsize=12, loc="lower left")
+    years = mdates.YearLocator()
+    # print(years)
+    yearsFmt = mdates.DateFormatter('%Y')  # add some space for the year label
+    months = mdates.MonthLocator()
+    monthsFmt = mdates.DateFormatter('%b') 
+    ax.xaxis.set_minor_locator(months)
+    ax.xaxis.set_minor_formatter(monthsFmt)
+    plt.setp(ax.xaxis.get_minorticklabels(), fontsize = 8, rotation=90)
+    ax.xaxis.set_major_locator(years)
+    ax.xaxis.set_major_formatter(yearsFmt)
+    # ax.set_xticklabels(["May", "Jun", "Jul", "Aug", "Sep"]*7)
+    ax.tick_params(axis='both', labelsize=8, rotation=0)
+    ax.tick_params(axis = 'x', pad=20)
+
+    plt.tight_layout()
+    plt.savefig('cal_val.png', bbox_inches='tight', dpi=300)
+    plt.show()
+
+
+def koki_temp():
+    wd = "d:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_ies"
+    os.chdir(wd)
+    pst_file = "koki_zon_rw_ies.pst"
+    post_iter_num = 3
+    pst = pyemu.Pst(pst_file) # load control file
+    # load prior simulation
+    pr_oe = pyemu.ObservationEnsemble.from_csv(
+        pst=pst,filename=f'{pst_file[:-4]}.0.obs.csv'
+        )
+    # load posterior simulation
+    pt_oe = pyemu.ObservationEnsemble.from_csv(
+        pst=pst,filename=f'{pst_file[:-4]}.{post_iter_num}.obs.csv'
+        )
+    df = get_pr_pt_df(pst, pr_oe, pt_oe)
+    # '''
+    plot_fill_between_ensembles(df.loc[df["obgnme"]=="sub03"], size=3)
+    # '''
+    # print(df)
+    plot_tseries_ensembles(pst, pr_oe, pt_oe)
 
 # def plot_tot():
 if __name__ == '__main__':
     # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    wd_lb = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\SWAT-MODFLOW_lb"
-    wd_ub = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\m01-base"
 
-    # for wd in [
-    #     wd_lb, 
-    #     wd_ub]:
-    #     obd_file = "stf_day.obd.csv"
-    #     m1 = SWATMFout(wd)
-    #     # print(m1)
-    #     # stfs = {3: "sub03"}
-    #     # dtws = {431: "g_431", 4011: "g_431"}
-    #     subnum = 3
-    #     obd_col = "sub03"
-    #     ts ="day"
-    #     viz_ts = "MA"
-    #     stf_obd_df = m1.get_stf_sim_obd(obd_file, obd_col, subnum)
-    #     std_df = m1.get_std_data()
-    #     gw_sim_df = m1.get_gw_sim()
-    #     gw_obd_df = m1.get_gw_obd()
-    #     # print(gw_sim_df)
-    #     grid_id = "sim_g249lyr2"
-    #     gw_obd_col = "g249lyr2"
-    #     temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_sim_df, grid_id, gw_obd_df, gw_obd_col)
-    #     print(wd[-2:])
-    m1 = SWATMFout(wd_ub)
-    df =  m1.get_gw_sim()
-    print(df)
-
-    for col in df.columns:
-        df.loc[:, col].to_csv(
-                        '{}.txt'.format(col), sep='\t', encoding='utf-8',
-                        index=True, header=False, float_format='%.7e'
-                        )
-
+    koki_temp()
 
 
