@@ -11,7 +11,7 @@ import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
-from swatmf import handler
+from swatmf import handler, objfns
 import pyemu
 
 
@@ -488,6 +488,214 @@ def wt_df(start_date, grid_id, obd_nam, time_step=None, prep_sub=None):
 
     return output_wt        
 
+
+
+
+def get_rels_objs_old(wd, pst_file, iter_idx=None, opt_idx=None):
+    pst = pyemu.Pst(os.path.join(wd, pst_file))
+    if iter_idx is None:
+        iter_idx = pst.control_data.noptmax
+    if opt_idx is None:
+        opt_idx = -1
+    # load observation data
+    obs = pst.observation_data.copy()
+    pst_nam = pst_file[:-4]
+    # load posterior simulation
+    pt_oe = pyemu.ObservationEnsemble.from_csv(
+        pst=pst,filename=os.path.join(wd,"{0}.{1}.obs.csv".format(pst_nam, iter_idx)))
+
+    pt_ut = pt_oe.loc[opt_idx].T
+    opt_df = pd.DataFrame()
+    opt_df = pd.concat([pt_ut, obs], axis=1)
+    sims = opt_df.iloc[:, 0].tolist()
+    obds = opt_df.iloc[:, 2].tolist()
+    pbias = objfns.pbias(obds, sims)
+    ns = objfns.nashsutcliffe(obds, sims)
+    rsq = objfns.rsquared(obds, sims)
+    rmse = objfns.rmse(obds, sims)
+    mse = objfns.mse(obds, sims)
+    pcc = objfns.correlationcoefficient(obds, sims)
+    return ns, pbias, rsq, rmse, mse, pcc
+
+
+def get_rels_objs(df, obgnme=None):
+    if obgnme is not None:
+        df = df.loc[df["obgnme"]==obgnme]
+    sims = df.loc[:, "best_rel"].tolist()
+    obds = df.loc[:, "obd"].tolist()
+    pbias = objfns.pbias(obds, sims)
+    ns = objfns.nashsutcliffe(obds, sims)
+    rsq = objfns.rsquared(obds, sims)
+    rmse = objfns.rmse(obds, sims)
+    mse = objfns.mse(obds, sims)
+    pcc = objfns.correlationcoefficient(obds, sims)
+    return ns, pbias, rsq, rmse, mse, pcc
+
+
+
+
+
+def get_rels_cal_val_objs(wd, pst_file, iter_idx=None, opt_idx=None, calval=None):
+    pst = pyemu.Pst(os.path.join(wd, pst_file))
+    if iter_idx is None:
+        iter_idx = pst.control_data.noptmax
+    if opt_idx is None:
+        opt_idx = -1
+    # load observation data
+    obs = pst.observation_data.copy()
+    pst_nam = pst_file[:-4]
+    # load posterior simulation
+    pt_oe = pyemu.ObservationEnsemble.from_csv(
+        pst=pst,filename=os.path.join(wd,"{0}.{1}.obs.csv".format(pst_nam, iter_idx)))
+
+    pt_ut = pt_oe.loc[opt_idx].T
+    opt_df = pd.DataFrame()
+    opt_df = pd.concat([pt_ut, obs], axis=1)
+
+    if calval is None:
+        calval = "cal"
+    opt_df = opt_df.loc[opt_df["obgnme"]==calval]
+    sims = opt_df.iloc[:, 0].tolist()
+    obds = opt_df.iloc[:, 2].tolist()
+    pbias = objfns.pbias(obds, sims)
+    ns = objfns.nashsutcliffe(obds, sims)
+    rsq = objfns.rsquared(obds, sims)
+    rmse = objfns.rmse(obds, sims)
+    mse = objfns.mse(obds, sims)
+    return ns, pbias, rsq, rmse
+
+def get_p_factor(pst, pt_oe, perc_obd_nz=None, cal_val=False):
+    """calculate p-factor
+
+    :param pst: pst object
+    :type pst: class
+    :param pt_oe: posterior ensamble
+    :type pt_oe: dataframe
+    :param perc_obd_nz: percentage of observation noise, defaults to None
+    :type perc_obd_nz: real, optional
+    :param cal_val: option to separate calibration and validation, defaults to False
+    :type cal_val: bool, optional
+    :return: p-factor value
+    :rtype: real
+    """
+    obs = pst.observation_data.copy()
+    if perc_obd_nz is None:
+        perc_obd_nz=10
+    perc = perc_obd_nz*0.01
+    time_col = []
+    for i in range(len(obs)):
+        time_col.append(obs.iloc[i, 0][-8:])
+    obs['time'] = time_col
+    obs['time'] = pd.to_datetime(obs['time'])    
+    df = pd.DataFrame(
+        {'date':obs['time'],
+        'obd':obs["obsval"],
+        'weight':obs["weight"],
+        'obgnme':obs["obgnme"],
+        'pt_min': pt_oe.min(),
+        'pt_max': pt_oe.max(),
+        }
+        )
+    if cal_val is True:
+        pfactors = []
+        for i in ["cal", "val"]:
+            cvdf = df.loc[df["obgnme"]==i]
+            conditions = [
+                ((cvdf.obd+(cvdf.obd*perc)) > cvdf.pt_min) & 
+                ((cvdf.obd-(cvdf.obd*perc)) < cvdf.pt_max)
+                    ]
+            cvdf['pfactor'] = np.select(
+                conditions, [1], default=0
+                )
+            pfactor = cvdf.loc[:, 'pfactor'].value_counts()[1] / len(cvdf.loc[:, 'pfactor'])
+            pfactors.append(pfactor)
+        print(pfactors)
+        return pfactors
+    else:
+        conditions = [
+            ((df.obd+(df.obd*perc)) > df.pt_min) & 
+            ((df.obd-(df.obd*perc)) < df.pt_max)
+                ]
+        df['pfactor'] = np.select(
+            conditions, [1], default=0
+            )
+        pfactor = df.loc[:, 'pfactor'].value_counts()[1] / len(df.loc[:, 'pfactor'])
+        print(pfactor)
+        df.to_csv('testpfactor.csv')
+        return pfactor
+    
+
+def get_d_factor(pst, pt_oe, cal_val=False):
+    obs = pst.observation_data.copy()
+    time_col = []
+    for i in range(len(obs)):
+        time_col.append(obs.iloc[i, 0][-8:])
+    obs['time'] = time_col
+    obs['time'] = pd.to_datetime(obs['time'])    
+    df = pd.DataFrame(
+        {'date':obs['time'],
+        'obd':obs["obsval"],
+        'weight':obs["weight"],
+        'obgnme':obs["obgnme"],
+        'pt_min': pt_oe.min(),
+        'pt_max': pt_oe.max(),
+        }
+        )
+    if cal_val is True:
+        dfactors = []
+        for i in ["cal", "val"]:
+            cvdf = df.loc[df["obgnme"]==i]
+            std_obd = np.std(cvdf['obd'])
+            dist_pts = (cvdf['pt_max'] - cvdf['pt_min']).mean()
+            dfactor = dist_pts/std_obd
+            dfactors.append(dfactor)
+        print(dfactors)
+        return dfactors
+    else:
+        std_obd = np.std(df['obd'])
+        dist_pts = (df['pt_max'] - df['pt_min']).mean()
+        dfactor = dist_pts/std_obd
+        print(dfactor)
+        return dfactor
+
+
+def create_rels_objs(wd, pst_file, iter_idx):
+    pst = pyemu.Pst(os.path.join(wd, pst_file))
+    # load observation data
+    # obs = pst.observation_data.copy()
+    pst_nam = pst_file[:-4]
+    # load posterior simulation
+    pt_oe = pyemu.ObservationEnsemble.from_csv(
+        pst=pst,filename=os.path.join(wd,"{0}.{1}.obs.csv".format(pst_nam, iter_idx)))
+    pt_par = pyemu.ParameterEnsemble.from_csv(
+        pst=pst,filename=os.path.join(wd,"{0}.{1}.par.csv".format(pst_nam, iter_idx)))
+    pt_oe_df = pd.DataFrame(pt_oe, index=pt_oe.index, columns=pt_oe.columns)
+    pt_par_df = pd.DataFrame(pt_par, index=pt_oe.index, columns=pt_par.columns)
+    nss = []
+    pbiass = []
+    rsqs = []
+    rmses = []
+    mses = []
+    pccs = []
+    # for i in range(np.shape(pt_oe)[0]):
+    for i in pt_oe.index:
+        ns, pbias, rsq, rmse, mse, pcc = get_rels_objs(wd, pst_file, iter_idx=iter_idx, opt_idx=i)
+        nss.append(ns)
+        pbiass.append(pbias)
+        rsqs.append(rsq)
+        rmses.append(rmse)
+        mses.append(mse)
+        pccs.append(pcc)
+    objs_df = pd.DataFrame(
+        {
+            "ns": nss, "pbias": pbiass, "rsq": rsqs, "rmse": rmses,
+            "mse": mses, "pcc":pccs
+            },
+        index=pt_oe.index)
+    pt_oe_df = pd.concat([pt_oe_df, objs_df], axis=1)
+    pt_par_df = pd.concat([pt_par_df, objs_df], axis=1)
+    pt_oe_df.to_csv(os.path.join(wd, "{0}.{1}.obs.objs.csv".format(pst_nam, iter_idx)))
+    pt_par_df.to_csv(os.path.join(wd, "{0}.{1}.par.objs.csv".format(pst_nam, iter_idx)))
 
 def wt_plot(plot_df):
 
@@ -1270,7 +1478,7 @@ def plot_fill_between_ensembles(
         valdates=None,
         size=None,
         pcp_df=None,
-        bestrel_idx=None,
+        bestrel_idx="best_rel",
         ):
     """plot time series of prior/posterior predictive uncertainties
 
@@ -1305,14 +1513,16 @@ def plot_fill_between_ensembles(
         ax.fill_between(
             caldf.index.values, caldf.loc[:, 'pt_min'].values, caldf.loc[:, 'pt_max'].values, 
             facecolor="g", alpha=0.4, label="Posterior")
-        ax.plot(caldf.index.values, caldf.loc[:, 'best_rel'].values, c='g', lw=1, label="calibrated")
+        if bestrel_idx is not None:
+            ax.plot(caldf.index.values, caldf.loc[:, bestrel_idx].values, c='g', lw=1, label="calibrated")
         ax.fill_between(
             valdf.index.values, valdf.loc[:, 'pt_min'].values, valdf.loc[:, 'pt_max'].values, 
             facecolor="m", alpha=0.4, label="Forecast")        
         ax.scatter(
             df.index.values, df.loc[:, 'obd'].values, 
             color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
-        ax.plot(valdf.index.values, valdf.loc[:, 'best_rel'].values, c='m', lw=1, label="validated")
+        if bestrel_idx is not None:
+            ax.plot(valdf.index.values, valdf.loc[:, bestrel_idx].values, c='m', lw=1, label="validated")
     else:
         ax.fill_between(
             x_values, df.loc[:, 'pr_min'].values, df.loc[:, 'pr_max'].values, 
@@ -1320,10 +1530,13 @@ def plot_fill_between_ensembles(
         ax.fill_between(
             x_values, df.loc[:, 'pt_min'].values, df.loc[:, 'pt_max'].values, 
             facecolor="g", alpha=0.4, label="Posterior")
-        # ax.plot(x_values, df.loc[:, 'best_rel'].values, c='g', lw=1, label="calibrated")
+        if bestrel_idx is not None:
+            ax.plot(
+                x_values, df.loc[:, bestrel_idx].values, 
+                c='b', lw=1, label="calibrated", zorder=3)
         ax.scatter(
             x_values, df.loc[:, 'obd'].values, 
-            color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
+            color='red',s=size, zorder=5, label="Observed", alpha=0.5).set_facecolor("none")
     if pcp_df is not None:
         # pcp_df.index.freq = None
         ax2=ax.twinx()
@@ -1362,9 +1575,16 @@ def plot_fill_between_ensembles(
 
     tlables = labels
     tlines = lines
- 
 
-    fig.legend(fontsize=12, loc="lower left")
+    fig.legend(
+        [tlines[idx] for idx in order],[tlables[idx] for idx in order],
+        fontsize=10,
+        loc = 'lower center',
+        bbox_to_anchor=(0.5, -0.08),
+        ncols=7)
+
+
+    # fig.legend(fontsize=12, loc="lower left")
     years = mdates.YearLocator()
     # print(years)
     yearsFmt = mdates.DateFormatter('%Y')  # add some space for the year label
@@ -1383,32 +1603,5 @@ def plot_fill_between_ensembles(
     plt.savefig('cal_val.png', bbox_inches='tight', dpi=300)
     plt.show()
 
-
-def koki_temp():
-    wd = "d:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_ies"
-    os.chdir(wd)
-    pst_file = "koki_zon_rw_ies.pst"
-    post_iter_num = 3
-    pst = pyemu.Pst(pst_file) # load control file
-    # load prior simulation
-    pr_oe = pyemu.ObservationEnsemble.from_csv(
-        pst=pst,filename=f'{pst_file[:-4]}.0.obs.csv'
-        )
-    # load posterior simulation
-    pt_oe = pyemu.ObservationEnsemble.from_csv(
-        pst=pst,filename=f'{pst_file[:-4]}.{post_iter_num}.obs.csv'
-        )
-    df = get_pr_pt_df(pst, pr_oe, pt_oe)
-    # '''
-    plot_fill_between_ensembles(df.loc[df["obgnme"]=="sub03"], size=3)
-    # '''
-    # print(df)
-    plot_tseries_ensembles(pst, pr_oe, pt_oe)
-
-# def plot_tot():
-if __name__ == '__main__':
-    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-
-    koki_temp()
 
 
