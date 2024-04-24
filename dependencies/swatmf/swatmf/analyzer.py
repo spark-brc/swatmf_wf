@@ -15,7 +15,6 @@ from swatmf import handler, objfns
 import pyemu
 
 
-
 def get_all_scenario_lists(wd):
     os.chdir(wd)
     scn_nams = [name for name in os.listdir(".") if os.path.isdir(name)]
@@ -491,7 +490,7 @@ def wt_df(start_date, grid_id, obd_nam, time_step=None, prep_sub=None):
 
 
 
-def get_rels_objs_old(wd, pst_file, iter_idx=None, opt_idx=None):
+def get_rels_objs(wd, pst_file, iter_idx=None, opt_idx=None):
     pst = pyemu.Pst(os.path.join(wd, pst_file))
     if iter_idx is None:
         iter_idx = pst.control_data.noptmax
@@ -518,7 +517,7 @@ def get_rels_objs_old(wd, pst_file, iter_idx=None, opt_idx=None):
     return ns, pbias, rsq, rmse, mse, pcc
 
 
-def get_rels_objs(df, obgnme=None):
+def get_rels_objs_new(df, obgnme=None):
     if obgnme is not None:
         df = df.loc[df["obgnme"]==obgnme]
     sims = df.loc[:, "best_rel"].tolist()
@@ -1039,8 +1038,9 @@ def get_par_offset(pst):
     return pars
 
 def plot_prior_posterior_par_hist(
-                    pst, prior_df, post_df, sel_pars,
-                    width=7, height=5, ncols=3):
+        wd,
+        pst, prior_df, post_df, sel_pars, 
+        width=7, height=5, ncols=3, bestcand=None, parobj_file=None):
     nrows = math.ceil(len(sel_pars)/ncols)
     pars_info = get_par_offset(pst)
     fig, axes = plt.subplots(figsize=(width, height), nrows=nrows, ncols=ncols)
@@ -1050,23 +1050,38 @@ def plot_prior_posterior_par_hist(
         if i<len(sel_pars):
             colnam = sel_pars['parnme'].tolist()[i]
             offset = pars_info.loc[colnam, "offset"]
+            
             ax.hist(prior_df.loc[:, colnam].values + offset,
                     bins=np.linspace(
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0] + offset, 
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0] + offset , 20),
-                    color = "gray", alpha=0.5, density=True,
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0]+ offset, 
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0]+ offset, 20),
+                    color = "gray", alpha=0.5, density=False,
                     label="Prior"
             )
             y, x, _ = ax.hist(post_df.loc[:, colnam].values + offset,
                     bins=np.linspace(
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0] + offset, 
-                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0] + offset, 20), 
-                     alpha=0.5, density=True, label="Posterior"
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parlbnd'].values[0]+ offset, 
+                        sel_pars.loc[sel_pars["parnme"]==colnam, 'parubnd'].values[0]+ offset, 20), 
+                        alpha=0.5, density=False, label="Posterior"
             )
-            ax.set_ylabel(colnam)
-            ax.set_yticks([])
-    plt.xlabel("Parameter range")
+            ax.set_title(colnam, fontsize=9, ha='left', x=0.07, y=0.93, backgroundcolor='white')
+            # ax.set_yticks([])
+            if parobj_file is not None:
+                po_df = pd.read_csv(os.path.join(wd, parobj_file))
+                x = po_df.loc[po_df["real_name"]==bestcand, colnam].values + offset
+                ax.axvline(x=x, color='r', linestyle="--", alpha=0.5)
+        else:
+            ax.axis('off')
+            ax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        # ax.set_xticks(ax.get_xticks()[::1])
+        
+        ax.tick_params(axis='x', labelsize=8)       
+    plt.ylabel(r"Frequency", fontsize=10)
+    plt.xlabel(r"Parameter relative change (%)", fontsize=10)
+    plt.tight_layout()
+    plt.savefig('par_hist.png', bbox_inches='tight', dpi=300)
     plt.show()
+    print(os.getcwd())
 
 # scratches for QSWATMOD
 # data comes from hanlder module and SWATMFout class
@@ -1364,40 +1379,6 @@ def std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
     # plt.show()
 
 
-# user custimized plot
-def temp_plot(stf_obd_df, obd_col, std_df, viz_ts, gw_df, grid_id, gw_obd_df, gw_obd_col):
-    fig = plt.figure(figsize=(10,10))
-    subplots = fig.subfigures(4, 1, height_ratios=[0.2, 0.2, 0.2, 0.4], hspace=-0.05)
-
-    ax0 = subplots[0].subplots(1,1)
-    ax1 = subplots[1].subplots(1,2, sharey=True, 
-                    gridspec_kw={
-                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
-                    'wspace': 0.0
-                    })
-    ax2 = subplots[2].subplots(1,2, sharey=True, 
-                    gridspec_kw={
-                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
-                    'wspace': 0.0
-                    })
-    ax3 = subplots[3].subplots(4,1, sharex=True, height_ratios=[0.2, 0.2, 0.4, 0.2])
-    # ax3 = subplots[1][1].subplots(2,5)
-
-    # streamflow
-    ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
-    ax0.tick_params(axis='both', labelsize=8)
-    plot_stf_sim_obd(ax0, stf_obd_df, obd_col)
-    # '''
-    plot_gw_sim_obd(ax1[0], gw_df, "sim_g249lyr2", gw_obd_df, "g249lyr2")
-    plot_gw_sim_obd(ax1[1], gw_df, "sim_g249lyr3", gw_obd_df, "g249lyr3")
-    # plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr2", gw_obd_df, "g1203lyr2")
-    # plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr2", gw_obd_df, "g1205lyr2")
-    plot_gw_sim(ax2[0], gw_df, "sim_g1203lyr3")
-    plot_gw_sim(ax2[1], gw_df, "sim_g1205lyr3")
-    # '''
-    std_plot(ax3, std_df, viz_ts)
-    plt.show()
-
 def plot_sen_morris(df):
     df = df.loc[df.sen_mean_abs>1e-6,:]
     # df.loc[:,["sen_mean_abs","sen_std_dev"]].plot(kind="bar", figsize=(9,3), fontsize=12)
@@ -1415,7 +1396,6 @@ def plot_sen_morris(df):
     ax.scatter(ss_df.sen_mean_abs,ss_df.sen_std_dev,marker="o",s=80,c="g", alpha=0.5, label="ss")
     ax.scatter(sy_df.sen_mean_abs,sy_df.sen_std_dev,marker="x",s=80,c="k", alpha=0.5, label="sy")
 
-
     # tmp_df = tmp_df.iloc[:8]
     for x,y,n in zip(df.sen_mean_abs,df.sen_std_dev,df.index):
         if x > 1000000:
@@ -1432,9 +1412,6 @@ def plot_sen_morris(df):
     plt.legend(fontsize=12, loc="lower right")
     plt.tight_layout()  
     plt.show()  
-
-# def ext_dtw():
-
 
 def get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=None):
     obs = pst.observation_data.copy()
@@ -1552,9 +1529,6 @@ def plot_fill_between_ensembles(
         ax2.set_ylim(pcp_df.loc[:, "pcpmm"].max()*3, 0)
         # ax.set_ylabel("Stream Discharge $(m^3/day)$",fontsize=14)
         ax2.tick_params(axis='y', labelsize=12)
-    # ax.axvline(datetime.datetime(2016,12,31), linestyle="--", color='k', alpha=0.3)
-    # ax.set_xlabel(r"Exceedence [%]", fontsize=12)
-    # ax.set_ylabel(r"Monthly irrigation $(mm/month)$", fontsize=12)
     ax.set_ylabel(r"Daily streamflow $(m^3/s)$", fontsize=12)
     ax.margins(0.01)
     ax.tick_params(axis='both', labelsize=12)
@@ -1604,4 +1578,70 @@ def plot_fill_between_ensembles(
     plt.show()
 
 
+def single_plot_fdc_added(
+                    df,
+                    width=10, height=8, dot=True,
+                    size=None, bstc=False,
+                    orgsim=None
+                    ):
+    """plot flow exceedence
 
+    :param df: dataframe created by get_pr_pt_df function
+    :type df: dataframe
+    :param width: figure width, defaults to 10
+    :type width: int, optional
+    :param height: figure hight, defaults to 8
+    :type height: int, optional
+    :param dot: scatter or line, defaults to True
+    :type dot: bool, optional
+    :param size: maker size, defaults to None
+    :type size: int, optional
+    :param bstcs: best candiates, defaults to None
+    :type bstcs: list, optional
+    :param orgsim: _description_, defaults to None
+    :type orgsim: _type_, optional
+    """
+    if size is None:
+        size = 30
+    obs_d, obd_exd = convert_fdc_data(df.obd.values)
+    pr_min_d, pr_min_exd = convert_fdc_data(df.pr_min.values)
+    pr_max_d, pr_max_exd = convert_fdc_data(df.pr_max.values)
+    pt_min_d, pt_min_exd = convert_fdc_data(df.pt_min.values)
+    pt_max_d, pt_max_exd = convert_fdc_data(df.pt_max.values)
+
+    fig, ax = plt.subplots(figsize=(width,height))
+    ax.fill_between(pr_min_exd*100, pr_min_d, pr_max_d, interpolate=False, facecolor="0.5", alpha=0.4)
+    ax.fill_between(pt_min_exd*100, pt_min_d, pt_max_d, interpolate=False, facecolor="b", alpha=0.4)
+    ax.scatter(obd_exd*100, obs_d, color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
+    if orgsim is not None:
+        orgsim = orgsim
+        org_d, org_exd = convert_fdc_data(orgsim.iloc[:, 0].values)
+        ax.plot(org_exd*100, org_d, c='limegreen', lw=2, label="Original")
+    if bstc is True:
+        # for bstc in bstcs:
+        #     dd, eexd = convert_fdc_data(df.best_rel.values)
+        #     ax.plot(eexd*100, dd, lw=2, label=bstc)
+        # for bstc in bstcs:
+        dd, eexd = convert_fdc_data(df.best_rel.values)
+        ax.plot(eexd*100, dd, lw=2, label="best_rel")
+
+
+
+    ax.set_yscale('log')
+    ax.set_xlabel(r"Exceedence [%]", fontsize=12)
+    ax.set_ylabel(r"Flow rate $[m^3/s]$", fontsize=12)
+    ax.margins(0.01)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=12, loc="lower left")
+    plt.tight_layout()
+    plt.savefig('fdc.png', bbox_inches='tight', dpi=300)
+    plt.show()
+    print(os.getcwd())  
+
+    # return pr_oe_min
+
+
+def convert_fdc_data(data):
+    data = np.sort(data)[::-1]
+    exd = np.arange(1.,len(data)+1) / len(data)
+    return data, exd
