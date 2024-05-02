@@ -132,7 +132,7 @@ def write_new_riv():
                 c += 1
     with open(riv_f, "w") as wf:
         wf.writelines(data)
-    print(os.path.basename(riv_f) + " file is overwritten successfully!")
+    print(f" {'>'*3} {os.path.basename(riv_f)}" + " file is overwritten successfully!")
 
 def replace_line(line, value, method, par_type):
     parts = line.split()

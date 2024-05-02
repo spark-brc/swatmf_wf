@@ -51,6 +51,13 @@ class SWATMFout(object):
             parse_dates=True,
             na_values=[-999, ""]
         )
+    
+    def read_dtw_static_obd(self):
+        return pd.read_csv(
+                    "dtw_static.obd.csv",
+                    parse_dates=['date'],
+                    na_values=[-999, ""],
+                    )
 
     def read_output_rch_data(self, colNum=6):
         return pd.read_csv(
@@ -105,7 +112,6 @@ class SWATMFout(object):
                             # index_col = 0,
                             names = ["layer", "grid_id", "mf_elev"],)
         mf_obs["grid_layer"] = "sim_g" + mf_obs['grid_id'].astype(str) + "lyr" + mf_obs["layer"].astype(str)
-
         # need to change grid id info to allow multi-layer outputs
         grid_lyr_lst = mf_obs.loc[:, "grid_layer"].tolist()
         output_wt = pd.read_csv(
@@ -113,8 +119,6 @@ class SWATMFout(object):
                             sep=r'\s+',
                             skiprows = 1,
                             names = grid_lyr_lst)
-        
-        # '''
         if dtw_format is True:
             dtw_df = pd.DataFrame()
             for grid_id in grid_lyr_lst:
@@ -129,7 +133,63 @@ class SWATMFout(object):
             output_wt.index = pd.date_range(self.stdate, periods=len(output_wt))
             return output_wt
         # '''
+
+    def get_static_gw(self):
+        dtw_st_df = self.read_dtw_static_obd()
+        dtw_st_df['date'] = pd.to_datetime(dtw_st_df['date']).dt.date
+        mask = (
+            (dtw_st_df['date'] >= self.stdate_warmup.date()) & 
+            (dtw_st_df['date'] <= self.eddate_warmup.date())
+            )
+        dtw_st_df = dtw_st_df.loc[mask]
+
+        with open("dtw_sim_static.txt", "w") as wf:
+            wf.write("# static gw function alpha version ...\n")
+            cols = f"{'grid_id':10s}{'layer':7s}{'date':17s}{'obd':14s}{'sim':14s}\n"
+            wf.write(cols)
+            for i in range(len(dtw_st_df)):
+                grid_id = dtw_st_df.iloc[i, 0]
+                layer = dtw_st_df.iloc[i, 1]
+                st_dtw = dtw_st_df.iloc[i, 2]
+                date = str(dtw_st_df.iloc[i, 3])
+                dtwst_sim, g, l = self.load_sim_dtw_file(grid_id, layer, date)
+                newline = f"{g:7d}{l:5d}{date:>14s}{st_dtw:14.4e}{dtwst_sim:14.4e}\n"
+                wf.write(newline)
+
+    def load_sim_dtw_file(self, grid_id, layer, date):
+        # print(date)
+        df = pd.read_csv(
+            f"sim_g{grid_id}lyr{layer}.txt", sep=r"\s+",
+            header=None, names=["date", "sim"])
+        sim = float(df.loc[df["date"]==date, "sim"].values[0])
+        while sim < -999 and layer < 3:
+            layer += 1
+            if os.path.isfile(f"sim_g{grid_id}lyr{layer}.txt"):
+                df = pd.read_csv(
+                        f"sim_g{grid_id}lyr{layer}.txt", sep=r"\s+",
+                        header=None,  names=["date", "sim"])
+                sim = float(df.loc[df["date"]==date, "sim"].values[0])
+        return sim, grid_id, layer
     
+    def mf_static_to_ins(self):
+        mf_sim_f = "dtw_sim_static.txt"
+        with open(mf_sim_f, 'r') as f:
+            data = f.readlines()
+            c = 0
+            for i, line in enumerate(data):
+                if line.strip().endswith("sim"):
+                    start_line = i
+        with open(f"{mf_sim_f}.ins", "w") as wf:
+            wf.write("pif ~" + "\n")
+            for i in range(start_line+1):
+                wf.write("l1\n")
+            for j in range(start_line+1, len(data)):
+                line = data[j].strip()
+                date = "".join(line.split()[2].split("-"))
+                obdnam = f"g{line.split()[0]}ly{line.split()[1]}d{date}"
+                newline = f"l1 w w w w !{obdnam:^20s}!\n"
+                wf.write(newline)
+
     def get_gw_obd(self, ts=None):
         if ts is None:
             mfobd_file = "dtw_day.obd.csv"
