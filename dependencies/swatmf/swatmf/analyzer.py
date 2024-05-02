@@ -112,44 +112,6 @@ def str_df(start_date, sub_number, time_step=None):
 
 
 
-def apex_str_df(rch_file, start_date, rch_num, obd_nam, time_step=None):
-    
-    if time_step is None:
-        time_step = "D"
-        strobd_file = "swat_rch_day.obd"
-    else:
-        time_step = "M"
-        strobd_file = "swat_rch_mon.obd."
-    output_rch = pd.read_csv(
-                        rch_file, sep=r'\s+', skiprows=9,
-                        usecols=[0, 1, 8], names=["idx", "sub", "simulated"], index_col=0
-                        )
-    df = output_rch.loc["REACH"]
-    str_obd = pd.read_csv(
-                        strobd_file, sep=r'\s+', index_col=0, header=0,
-                        parse_dates=True, delimiter="\t",
-                        na_values=[-999, ""]
-                        )
-    # Get precipitation data from *.DYL
-    prep_file = 'sub{}.DLY'.format(rch_num)
-    with open(prep_file) as f:
-        content = f.readlines()    
-    year = content[0][:6].strip()
-    mon = content[0][6:10].strip()
-    day = content[0][10:14].strip()
-    prep = [float(i[32:38].strip()) for i in content]
-    prep_stdate = "/".join((mon,day,year))
-    prep_df =  pd.DataFrame(prep, columns=['prep'])
-    prep_df.index = pd.date_range(prep_stdate, periods=len(prep))
-    prep_df = prep_df.replace(9999, np.nan)
-    if time_step == "M":
-        prep_df = prep_df.resample('M').mean()
-    df = df.loc[df['sub'] == int(rch_num)]
-    df = df.drop('sub', axis=1)
-    df.index = pd.date_range(start_date, periods=len(df), freq=time_step)
-    df = pd.concat([df, str_obd[obd_nam], prep_df], axis=1)
-    plot_df = df[df['simulated'].notna()]
-    return plot_df
 
 
 def str_sim_obd(plot_df): # NOTE: temp for report
@@ -669,7 +631,7 @@ def create_rels_objs(wd, pst_file, iter_idx):
     pt_par = pyemu.ParameterEnsemble.from_csv(
         pst=pst,filename=os.path.join(wd,"{0}.{1}.par.csv".format(pst_nam, iter_idx)))
     pt_oe_df = pd.DataFrame(pt_oe, index=pt_oe.index, columns=pt_oe.columns)
-    pt_par_df = pd.DataFrame(pt_par, index=pt_oe.index, columns=pt_par.columns)
+    pt_par_df = pd.DataFrame(pt_par, index=pt_par.index, columns=pt_par.columns)
     nss = []
     pbiass = []
     rsqs = []
@@ -836,130 +798,6 @@ def y_fmt(y, pos):
     return y
 
 
-def read_output_mgt(wd):
-    with open(os.path.join(wd, 'output.mgt'), 'r') as f:
-        content = f.readlines()
-    subs = [int(i[:5]) for i in content[5:]]
-    hrus = [int(i[5:10]) for i in content[5:]]
-    yrs = [int(i[10:16]) for i in content[5:]]
-    mons = [int(i[16:22]) for i in content[5:]]
-    doys = [int(i[22:28]) for i in content[5:]]
-    areas = [float(i[28:39]) for i in content[5:]]
-    cfp = [str(i[39:55]).strip() for i in content[5:]]
-    opt = [str(i[55:70]).strip() for i in content[5:]]
-    irr = [-999 if i[150:160].strip() == '' else float(i[150:160]) for i in content[5:]]
-    mgt_df = pd.DataFrame(
-        np.column_stack([subs, hrus, yrs, mons, doys, areas, cfp, opt, irr]),
-        columns=['sub', 'hru', 'yr', 'mon', 'doy', 'area_km2', 'cfp', 'opt', 'irr_mm'])
-    mgt_df['irr_mm'] = mgt_df['irr_mm'].astype(float)
-    mgt_df['irr_mm'].replace(-999, np.nan, inplace=True)
-    return mgt_df
-
-def read_output_hru(wd):
-    with open(os.path.join(wd, 'output.hru'), 'r') as f:
-        content = f.readlines()
-    lulc = [(i[:4]) for i in content[9:]]
-    hrus = [str(i[10:19]) for i in content[9:]]
-    subs = [int(i[19:24]) for i in content[9:]]
-    mons = [(i[29:34]) for i in content[9:]]
-    areas = [float(i[34:44]) for i in content[9:]]
-    irr = [float(i[74:84]) for i in content[9:]]
-
-    hru_df = pd.DataFrame(
-        np.column_stack([lulc, hrus, subs, mons, areas, irr]),
-        columns=['lulc', 'hru', 'sub', 'mon', 'area_km2', 'irr_mm'])
-
-    conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
-    hru_df = hru_df.astype(conv_types)
-    hru_df = hru_df.loc[hru_df['mon'] < 13]
-    hru_df['mon'] = hru_df['mon'].astype(int)
-    hru_df['irr_m3'] = (hru_df['area_km2']*1000000) * (hru_df['irr_mm']*0.001)
-
-    return hru_df
-
-def read_output_sub(wd):
-    with open(os.path.join(wd, 'output.sub'), 'r') as f:
-        content = f.readlines()
-    subs = [int(i[6:10]) for i in content[9:]]
-    mons = [float(i[19:24]) for i in content[9:]]
-    preps = [float(i[34:44]) for i in content[9:]]
-    # pets = [float(i[54:64]) for i in content[9:]]
-    ets = [float(i[64:74]) for i in content[9:]]
-    sws = [float(i[74:84]) for i in content[9:]]
-    percs = [float(i[84:94]) for i in content[9:]]
-    surqs = [float(i[94:104]) for i in content[9:]]
-    gwqs = [float(i[104:114]) for i in content[9:]]
-    seds = [float(i[124:134]) for i in content[9:]]
-    latq = [float(i[184:194]) for i in content[9:]] 
-    sub_df = pd.DataFrame(
-        np.column_stack([subs, mons, preps, sws, latq, surqs, ets, percs, gwqs, seds]),
-        columns=["subs","mons", "precip", "sw", "latq", "surq", "et", "perco", "gwq", "sed"])
-
-    # conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
-    # hru_df = hru_df.astype(conv_types)
-    sub_df = sub_df.loc[sub_df['mons'] < 13]
-    sub_df['mons'] = sub_df['mons'].astype(int)
-    sub_df['subs'] = sub_df['subs'].astype(int)
-    return sub_df
-
-
-def read_output_sed(wd):
-    with open(os.path.join(wd, 'output.sed'), 'r') as f:
-        content = f.readlines()
-    subs = [int(i[5:10]) for i in content[1:]]
-    mons = [float(i[19:25]) for i in content[1:]]
-    seds = [float(i[49:61]) for i in content[1:]]
-
-    sed_df = pd.DataFrame(
-        np.column_stack([subs, mons, seds]),
-        columns=["subs","mons", "sed"])
-
-    # conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
-    # hru_df = hru_df.astype(conv_types)
-    sed_df = sed_df.loc[sed_df['mons'] < 13]
-    # sed_df['mons'] = sed_df['mons'].astype(int)
-    sed_df['subs'] = sed_df['subs'].astype(int)
-    return sed_df
-
-
-def read_output_rsv(wd):
-    with open(os.path.join(wd, 'output.rsv'), 'r') as f:
-        content = f.readlines()
-    subs = [int(i[5:14]) for i in content[9:]]
-    mons = [float(i[14:19]) for i in content[9:]]
-    flow = [float(i[43:55]) for i in content[9:]]
-    seds = [float(i[103:115]) for i in content[9:]]
-
-    sed_df = pd.DataFrame(
-        np.column_stack([subs, mons, flow, seds]),
-        columns=["subs","mons", "flow", "sed"])
-
-    # conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
-    # hru_df = hru_df.astype(conv_types)
-    sed_df = sed_df.loc[sed_df['mons'] < 13]
-    # sed_df['mons'] = sed_df['mons'].astype(int)
-    sed_df['subs'] = sed_df['subs'].astype(int)
-    return sed_df
-
-
-def read_output_rch(wd):
-    with open(os.path.join(wd, 'output.rch'), 'r') as f:
-        content = f.readlines()
-    subs = [int(i[5:10]) for i in content[9:]]
-    mons = [float(i[19:25]) for i in content[9:]]
-    flow = [float(i[49:61]) for i in content[9:]]
-    seds = [float(i[97:109]) for i in content[9:]]
-
-    sed_df = pd.DataFrame(
-        np.column_stack([subs, mons, flow, seds]),
-        columns=["subs","mons", "flow", "sed"])
-
-    # conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
-    # hru_df = hru_df.astype(conv_types)
-    sed_df = sed_df.loc[sed_df['mons'] < 13]
-    # sed_df['mons'] = sed_df['mons'].astype(int)
-    sed_df['subs'] = sed_df['subs'].astype(int)
-    return sed_df
 
 
 def phi_progress_plot(filename):
@@ -1128,7 +966,7 @@ def plot_gw_sim_obd(ax, sim_df, grid_id, obd_df, obd_col):
         df.index.values, df[obd_col].values, c='m', lw=1.5, alpha=0.5,
         label="Observed", zorder=3
     )
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
+    # ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d\n%Y'))
     if len(df[obd_col]) > 1:
         calculate_metrics_gw(ax, df, grid_id, obd_col)
     else:
@@ -1645,3 +1483,93 @@ def convert_fdc_data(data):
     data = np.sort(data)[::-1]
     exd = np.arange(1.,len(data)+1) / len(data)
     return data, exd
+
+
+def plot_each_obg(df, rel_idx):
+    # df = handler.filter_candidates2()
+    obgs = df.obgnme.unique()
+    df = df[["obsval", "obgnme", "time", rel_idx]]
+
+    fig, axes = plt.subplots(figsize=(5.5, 12), nrows=len(obgs))
+    for obg, ax in zip(obgs, axes):
+        dff = df.loc[df["obgnme"]==obg]
+        obds = dff.obsval.values
+        sims = dff.loc[:, rel_idx].values
+        pbias = objfns.pbias(obds, sims)
+        ns = objfns.nashsutcliffe(obds, sims)
+        rsq = objfns.rsquared(obds, sims)
+        rmse = objfns.rmse(obds, sims)
+        mse = objfns.mse(obds, sims)
+        pcc = objfns.correlationcoefficient(obds, sims)
+        ax.text(
+            0, 1,
+            f'obg: {obg} - ns: {ns:.2f}, rmse: {rmse:.2f}, pbias: {pbias:.2f}, rsq: {rsq:.2f}',
+            horizontalalignment='left',fontsize=10,
+            bbox=dict(facecolor='m', alpha=0.5),
+            transform=ax.transAxes
+            )
+        ax.scatter(dff.time, dff.obsval, c="r", s=3, alpha=0.2, zorder=3)
+        ax.plot(dff.time, dff.loc[:, rel_idx])
+    # plt.title(f"rel_name: {rel_idx}")
+    fig.suptitle(f'rel{rel_idx}', fontsize=10, y=1)
+    fig.tight_layout()
+    plt.savefig(f'rel{rel_idx}.png', bbox_inches='tight', dpi=300)
+    # plt.show()
+
+def fdc(
+        df, rel_nams, ncols=5,
+        width=7, height=5, obgnme="sub03"
+        ):
+    nrows = math.ceil(len(rel_nams)/ncols)
+    fig, axes = plt.subplots(
+        figsize=(width, height), nrows=nrows, ncols=ncols,
+        sharex=True, sharey=True)
+    for i, ax in enumerate(axes.flat):
+        if i<len(rel_nams):
+            rel_idx = rel_nams[i]
+            dff = df[["obsval", "obgnme", "time", rel_idx]]
+            dff = dff.loc[dff["obgnme"]==obgnme]
+            odd, oeexd = convert_fdc_data(dff.obsval.values)
+            sdd, seexd = convert_fdc_data(dff.loc[:, rel_idx].values)
+            ax.plot(seexd*100, sdd, lw=2, label="sim_sub03")
+            ax.plot(oeexd*100, odd, lw=2, label="obd")
+            ax.set_yscale('log')
+            # ax.set_xlabel(r"Exceedence [%]", fontsize=12)
+            # ax.set_ylabel(r"Flow rate $[m^3/s]$", fontsize=12)
+            ax.margins(0.01)
+            # ax.tick_params(axis='both', labelsize=12)
+            # plt.legend(fontsize=12, loc="lower left")
+            ax.text(
+                1, 0.8, f'rel{rel_idx}', fontsize=10,
+                horizontalalignment='right',
+                transform=ax.transAxes)
+        else:
+            ax.axis('off')
+            ax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+    plt.tight_layout()
+    plt.savefig(f'fdc_{obgnme}.png', bbox_inches='tight', dpi=300)
+    plt.show()
+
+
+
+def single_fdc(df):
+    # from get_stf_sim_obd
+    fig, ax = plt.subplots()
+    odd, oeexd = convert_fdc_data(df.iloc[:, 1].values)
+    sdd, seexd = convert_fdc_data(df.iloc[:, 0].values)
+    ax.plot(seexd*100, sdd, lw=2, label="sim")
+    ax.plot(oeexd*100, odd, lw=2, label="obd")
+    ax.set_yscale('log')
+    # ax.set_xlabel(r"Exceedence [%]", fontsize=12)
+    # ax.set_ylabel(r"Flow rate $[m^3/s]$", fontsize=12)
+    ax.margins(0.01)
+    # ax.tick_params(axis='both', labelsize=12)
+    # plt.legend(fontsize=12, loc="lower left")
+    # ax.text(
+    #     1, 0.8, f'rel{rel_idx}', fontsize=10,
+    #     horizontalalignment='right',
+        # transform=ax.transAxes)
+    plt.tight_layout()
+    # plt.savefig(f'fdc_{obgnme}.png', bbox_inches='tight', dpi=300)
+    plt.show()
+
