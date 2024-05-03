@@ -155,7 +155,7 @@ class SWATMFout(object):
                 dtwst_sim, g, l = self.load_sim_dtw_file(grid_id, layer, date)
                 newline = f"{g:7d}{l:5d}{date:>14s}{st_dtw:14.4e}{dtwst_sim:14.4e}\n"
                 wf.write(newline)
-    print(f" {'>'*3} {'dtw_sim_static.txt'}" + " file file has been created...")    
+        print(f" {'>'*3} {'dtw_sim_static.txt'}" + " file file has been created...")    
 
     def load_sim_dtw_file(self, grid_id, layer, date):
         # print(date)

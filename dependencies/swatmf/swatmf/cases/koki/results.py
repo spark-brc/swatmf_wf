@@ -166,7 +166,7 @@ def modi_dtw_avg_obd():
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m03-base_glm"
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m04-base"
     # sim_obj_file = "koki_zon_rw_ies.0.obs.csv"
     # df, rel_nams = handler.filter_candidates2(wd, pst, sim_obj_file)
     # # for rel in rel_nams:
@@ -180,21 +180,20 @@ if __name__ == '__main__':
     obd_col = "sub03"
     subnum = 3
     m1 = handler.SWATMFout(wd)
-    # stf_sim_obd = m1.get_stf_sim_obd(stf_obd_file, obd_col, subnum)
-    # # # stf_sim_obd.drop("filter", axis=1, inplace=True)
-    # # # analyzer.str_sim_obd(stf_sim_obd)
-    # wb_df = m1.get_std_data()
-    # viz_ts = "month"
-    # gw_df = m1.get_gw_sim()
-    # grid_id = "a"
-    # gw_obd = m1.get_gw_obd()
-    # gw_obd_col = "b"
-    # analyzer.single_fdc(stf_sim_obd)
-    # temp_plot(stf_sim_obd, obd_col, wb_df, viz_ts, gw_df, grid_id, gw_obd, gw_obd_col)
+    stf_sim_obd = m1.get_stf_sim_obd(stf_obd_file, obd_col, subnum)
+    # # stf_sim_obd.drop("filter", axis=1, inplace=True)
+    # # analyzer.str_sim_obd(stf_sim_obd)
+    wb_df = m1.get_std_data()
+    viz_ts = "month"
+    gw_df = m1.get_gw_sim()
+    grid_id = "a"
+    gw_obd = m1.get_gw_obd()
+    gw_obd_col = "b"
+    analyzer.single_fdc(stf_sim_obd)
+    temp_plot(stf_sim_obd, obd_col, wb_df, viz_ts, gw_df, grid_id, gw_obd, gw_obd_col)
     # '''
     # m1 = mf_configs.mfEdit(wd)
     # mf_configs.write_new_riv()
 
     # obd = m1.load_sim_dtw_file(4011, 3, "2010-01-01")
-    m1.mf_static_to_ins()
     # print(obd)
