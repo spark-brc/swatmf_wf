@@ -166,7 +166,7 @@ def modi_dtw_avg_obd():
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m05-base"
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m04-base_03_ub"
     # sim_obj_file = "koki_zon_rw_ies.0.obs.csv"
     # df, rel_nams = handler.filter_candidates2(wd, pst, sim_obj_file)
     # # for rel in rel_nams:
