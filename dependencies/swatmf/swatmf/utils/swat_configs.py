@@ -41,6 +41,17 @@ class SwatEdit:
         self.subbasins_mgt = []
         self.hrus_mgt = []
 
+
+    def read_subs(self):
+        # get sub nums
+        infig = 'fig.fig'
+        with open(infig, "r") as f:
+            self.sub_ids = [
+                int(x.strip().split()[3]) for x in f if x.strip() and x.strip().startswith('subbasin')
+                ] # get only line with subbasin
+        self.sub_num = len(self.sub_ids)
+        return self.sub_ids   
+
     def get_subbasins(self):
         out_reaches = self.out_reach
         fig_file = self.fig_file
@@ -71,6 +82,7 @@ class SwatEdit:
                     add_list = pd.DataFrame(add_list)
                 subbasins_list = []
                 for out_reach in out_reaches:
+                    print(out_reach)
                     subbasins = []
                     # find inflow element to out_reach in route_list
                     inflow = int(route_list.loc[pd.to_numeric(route_list[3]) == out_reach].to_numpy()[:, -1:])

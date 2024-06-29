@@ -165,26 +165,26 @@ def str_plot(plot_df, prep=None): # NOTE: with precipitation data
     # plot
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.grid(True)
-    ax.plot(plot_df.index, plot_df.iloc[:, 0], label='Simulated', color='green', marker='^', alpha=0.7)
+    ax.plot(plot_df.index, plot_df.iloc[:, 0], label='Simulated', color='green', alpha=0.7)
     ax.scatter(
         plot_df.index, plot_df.iloc[:, 1], label='Observed',
         # color='red',
         facecolors="None", edgecolors='red',
-        lw=1.5,
+        # lw=1.5,
         alpha=0.4,
         # zorder=2,
         )
-    ax.plot(plot_df.index, plot_df.iloc[:, 1], color='red', alpha=0.4, zorder=2,)
+    # ax.plot(plot_df.index, plot_df.iloc[:, 1], color='red', alpha=0.4, zorder=2,)
     
     if prep:
         ax2=ax.twinx()
         ax2.bar(
-            plot_df.index, plot_df.prep, label='Precipitation',
+            plot_df.index, plot_df["prep"], label='Precipitation',
             width=20,
             color="blue", align='center', alpha=0.5, zorder=0)
         ax2.set_ylabel("Precipitation $(mm)$",color="blue",fontsize=14)
         ax2.invert_yaxis()
-        ax2.set_ylim(plot_df.prep.max()*3, 0)
+        ax2.set_ylim(plot_df["prep"].max()*3, 0)
         ax.set_ylabel("Stream Discharge $(m^3/day)$",fontsize=14)
         ax2.tick_params(axis='y', labelsize=12)    
     ax.margins(y=0.2)
@@ -246,7 +246,7 @@ def str_plot_test(plot_df, cal_period=None, val_period=None):
     ax.grid(True)
     # cali
     ax.plot(cal_df.index, cal_df.iloc[:, 0], label='Calibrated', color='green', marker='^', alpha=0.7)
-    ax.plot(val_df.index, val_df.iloc[:, 0], label='Validated', color='m', marker='x', alpha=0.7)
+    # ax.plot(val_df.index, val_df.iloc[:, 0], label='Validated', color='m', marker='x', alpha=0.7)
     ax.scatter(
         plot_df.index, plot_df.iloc[:, 1], label='Observed',
         # color='red',

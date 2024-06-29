@@ -72,12 +72,12 @@ class SWATMFout(object):
     def update_index(self, df):
         startDate = self.stdate_warmup
         if self.iprint == 1:
-            df.index = pd.date_range(startDate, periods=len(df.stf_sim))
+            df.index = pd.date_range(startDate, periods=len(df))
         elif self.iprint == 0:
             df = df[df['filter'] < 13]
-            df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="M")
+            df.index = pd.date_range(startDate, periods=len(df), freq="M")
         else:
-            df.index = pd.date_range(startDate, periods=len(df.stf_sim), freq="A")
+            df.index = pd.date_range(startDate, periods=len(df), freq="A")
         return df
 
     def get_stf_sim(colNum=6):
@@ -396,6 +396,21 @@ class SWATMFout(object):
         mbig_df_t.to_csv("mf_rch_avg_mon.csv", index=False)
         print("finished ...")
 
+    def temp_sup(self, subid): # to get prep
+        with open('output.sub', 'r') as f:
+            content = f.readlines()
+        subs = [int(i[6:10]) for i in content[9:]]
+        preps = [float(i[34:49]) for i in content[9:]]
+        sub_df = pd.DataFrame(
+            np.column_stack([subs, preps]),
+            columns=["subs","prep",])
+        sub_df['subs'] = sub_df['subs'].astype(int)
+        sub_df = sub_df.loc[sub_df["subs"]==subid]
+        sub_df = self.update_index(sub_df)
+
+        return sub_df 
+
+
 
 
 def read_output_mgt(wd):
@@ -439,12 +454,15 @@ def read_output_hru(wd):
 
     return hru_df
 
+   
+
+
 def read_output_sub(wd):
     with open(os.path.join(wd, 'output.sub'), 'r') as f:
         content = f.readlines()
     subs = [int(i[6:10]) for i in content[9:]]
     mons = [float(i[19:24]) for i in content[9:]]
-    preps = [float(i[34:44]) for i in content[9:]]
+    preps = [float(i[34:49]) for i in content[9:]]
     # pets = [float(i[54:64]) for i in content[9:]]
     ets = [float(i[64:74]) for i in content[9:]]
     sws = [float(i[74:84]) for i in content[9:]]

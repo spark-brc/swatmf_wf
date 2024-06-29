@@ -2,8 +2,10 @@ import os
 import glob
 import shutil
 import pandas as pd
+import numpy as np
 # from .. import gcm_analysis
 from tqdm import tqdm
+import datetime
 
 
 class WeatherData(object):
@@ -262,28 +264,315 @@ def modify_sol(back_dir, output_dir):
             f.writelines(data)
     
 
+def define_sim_period():
+    if os.path.isfile("file.cio"):
+        cio = open("file.cio", "r")
+        lines = cio.readlines()
+        skipyear = int(lines[59][12:16])
+        iprint = int(lines[58][12:16]) #read iprint (month, day, year)
+        styear = int(lines[8][12:16]) #begining year
+        styear_warmup = int(lines[8][12:16]) + skipyear #begining year with warmup
+        edyear = styear + int(lines[7][12:16])-1 # ending year
+        edyear_warmup = styear_warmup + int(lines[7][12:16])-1 - int(lines[59][12:16])#ending year with warmup
+        if skipyear == 0:
+            FCbeginday = int(lines[9][12:16])  #begining julian day
+        else:
+            FCbeginday = 1  #begining julian day
+        FCendday = int(lines[10][12:16])  #ending julian day
+        cio.close()
+        stdate = datetime.datetime(styear, 1, 1) + datetime.timedelta(FCbeginday - 1)
+        eddate = datetime.datetime(edyear, 1, 1) + datetime.timedelta(FCendday - 1)
+        stdate_warmup = datetime.datetime(styear_warmup, 1, 1) + datetime.timedelta(FCbeginday - 1)
+        eddate_warmup = datetime.datetime(edyear_warmup, 1, 1) + datetime.timedelta(FCendday - 1)
+
+        startDate = stdate.strftime("%m/%d/%Y")
+        endDate = eddate.strftime("%m/%d/%Y")
+        startDate_warmup = stdate_warmup.strftime("%m/%d/%Y")
+        endDate_warmup = eddate_warmup.strftime("%m/%d/%Y")
+        # duration = (eddate - stdate).days
+
+        # ##### 
+        # start_month = stdate.strftime("%b")
+        # start_day = stdate.strftime("%d")
+        # start_year = stdate.strftime("%Y")
+        # end_month = eddate.strftime("%b")
+        # end_day = eddate.strftime("%d")
+        # end_year = eddate.strftime("%Y")
+        return startDate, endDate, startDate_warmup, endDate_warmup
 
 
+def delete_duplicate_river_grids(wd, riv_fname):
+    with open(os.path.join(wd, riv_fname), "r") as fp:
+        lines = fp.readlines()
+        new_lines = []
+        for line in lines:
+            #- Strip white spaces
+            line = line.strip()
+            if line not in new_lines:
+                new_lines.append(line)
+
+    output_file = "{}_fixed".format(riv_fname)
+    with open(os.path.join(wd, output_file), "w") as fp:
+        fp.write("\n".join(new_lines))
+    print('done!')
+
+
+def get_all_scenario_lists(wd):
+    os.chdir(wd)
+    scn_nams = [name for name in os.listdir(".") if os.path.isdir(name)]
+    full_paths = [os.path.abspath(name) for name in os.listdir(".") if os.path.isdir(name)]
+    return scn_nams, full_paths    
+
+
+def all_strs(wd, sub_number, start_date, obd_nam, time_step=None):
+    scn_nams, full_paths = get_all_scenario_lists(wd)
+    if time_step is None:
+        time_step = "D"
+        strobd_file = "swat_rch_day.obd"
+    else:
+        time_step = "M"
+        strobd_file = "swat_rch_mon.obd"
+    tot_df = pd.DataFrame()
+    for scn_nam, p in zip(scn_nams, full_paths):
+        os.chdir(p)
+        print("Folder changed to {}".format(p))
+        df = pd.read_csv(
+                    os.path.join("output.rch"),
+                    delim_whitespace=True,
+                    skiprows=9,
+                    usecols=[1, 3, 6],
+                    names=["date", "filter", "str_sim"],
+                    index_col=0)
+        df = df.loc[sub_number]
+        if time_step == 'M':
+            df = df[df["filter"] < 13]
+        df.index = pd.date_range(start_date, periods=len(df.str_sim), freq=time_step)
+
+        df.rename(columns = {'str_sim':'{}_sub_{}'.format(scn_nam, sub_number)}, inplace = True)
+        tot_df = pd.concat(
+            [tot_df, df['{}_sub_{}'.format(scn_nam, sub_number)]], axis=1,
+            sort=False
+            )
+    print('Finished!')
+    return tot_df
+
+
+def all_seds(wd, sub_number, start_date, obd_nam, time_step=None):
+    scn_nams, full_paths = get_all_scenario_lists(wd)
+    if time_step is None:
+        time_step = "D"
+        strobd_file = "swat_rch_day.obd"
+    else:
+        time_step = "M"
+        strobd_file = "swat_rch_mon.obd"
+    tot_df = pd.DataFrame()
+    for scn_nam, p in zip(scn_nams, full_paths):
+        os.chdir(p)
+        print("Folder changed to {}".format(p))
+        df = pd.read_csv(
+                    os.path.join("output.rch"),
+                    delim_whitespace=True,
+                    skiprows=9,
+                    usecols=[1, 3, 10],
+                    names=["date", "filter", "str_sim"],
+                    index_col=0)
+        df = df.loc[sub_number]
+        if time_step == 'M':
+            df = df[df["filter"] < 13]
+        df.index = pd.date_range(start_date, periods=len(df.str_sim), freq=time_step)
+
+        df.rename(columns = {'str_sim':'{}_sub_{}'.format(scn_nam, sub_number)}, inplace = True)
+        tot_df = pd.concat(
+            [tot_df, df['{}_sub_{}'.format(scn_nam, sub_number)]], axis=1,
+            sort=False
+            )
+    print('Finished!')
+    return tot_df
+
+
+def str_df(rch_file, start_date, rch_num, obd_nam, time_step=None):
+    
+    if time_step is None:
+        time_step = "D"
+        strobd_file = "swat_rch_day.obd"
+    else:
+        time_step = "M"
+        strobd_file = "swat_rch_mon.obd."
+    output_rch = pd.read_csv(
+                        rch_file, delim_whitespace=True, skiprows=9,
+                        usecols=[0, 1, 8], names=["idx", "sub", "simulated"], index_col=0
+                        )
+    df = output_rch.loc["REACH"]
+    str_obd = pd.read_csv(
+                        strobd_file, sep=r'\s+', index_col=0, header=0,
+                        parse_dates=True, delimiter="\t",
+                        na_values=[-999, ""]
+                        )
+    # Get precipitation data from *.DYL
+    prep_file = 'sub{}.DLY'.format(rch_num)
+    with open(prep_file) as f:
+        content = f.readlines()    
+    year = content[0][:6].strip()
+    mon = content[0][6:10].strip()
+    day = content[0][10:14].strip()
+    prep = [float(i[32:38].strip()) for i in content]
+    prep_stdate = "/".join((mon,day,year))
+    prep_df =  pd.DataFrame(prep, columns=['prep'])
+    prep_df.index = pd.date_range(prep_stdate, periods=len(prep))
+    prep_df = prep_df.replace(9999, np.nan)
+    if time_step == "M":
+        prep_df = prep_df.resample('M').mean()
+    df = df.loc[df['sub'] == int(rch_num)]
+    df = df.drop('sub', axis=1)
+    df.index = pd.date_range(start_date, periods=len(df), freq=time_step)
+    df = pd.concat([df, str_obd[obd_nam], prep_df], axis=1)
+    plot_df = df[df['simulated'].notna()]
+    return plot_df
+
+
+def cvt_usgs_stf_obd(wd, fnam, stdate, eddate, colnam):
+    df = pd.read_csv(os.path.join(wd, fnam), sep='\t', comment='#', header=0)
+    df = df[df['agency_cd']=='USGS']
+    df = df.drop(['agency_cd', f'{colnam}_cd'], axis=1)
+    sites = df['site_no'].unique()
+    dff = pd.DataFrame()
+    dff['date'] = pd.date_range(stdate, eddate)
+    dff = dff.set_index('date')
+    for i in tqdm(sites):
+        data = df[df['site_no']==str(i)]
+        data.index = data.datetime
+        # current data index is not datetimeindex so you need to convert it
+        data.index = pd.to_datetime(data.index)
+        data = data[~data.index.duplicated(keep='first')]
+        data = data.drop(['site_no', 'datetime'], axis=1)
+        data = data[str(colnam)]
+        data.rename(str(i), inplace=True)
+        # print(data)
+        # data = data.rename({colnam: i}, axis=1)
+        # data = data[str(i)]
+        # print(data)
+        # data = data.replace({i:['Ice','Ssn', 'Dis']}, np.nan)
+        # convert cfs to cms
+        data = data.astype('float')*0.0283
+        dff = pd.concat([dff, data], axis=1, sort=True)
+    dff.index.name = 'date'
+    dff = dff.astype('float')
+    # dff.dtypes
+    dff.to_csv(os.path.join(wd, "stf_day.obd2.csv"), na_rep=-999)
+
+def read_output_sub(wd):
+    with open(os.path.join(wd, 'output.sub'), 'r') as f:
+        content = f.readlines()
+    subs = [int(i[6:10]) for i in content[9:]]
+    mons = [float(i[19:24]) for i in content[9:]]
+    preps = [float(i[34:44]) for i in content[9:]]
+    # pets = [float(i[54:64]) for i in content[9:]]
+    ets = [float(i[64:74]) for i in content[9:]]
+    sws = [float(i[74:84]) for i in content[9:]]
+    percs = [float(i[84:94]) for i in content[9:]]
+    surqs = [float(i[94:104]) for i in content[9:]]
+    gwqs = [float(i[104:114]) for i in content[9:]]
+    latq = [float(i[184:194]) for i in content[9:]] 
+    sub_df = pd.DataFrame(
+        np.column_stack([subs, mons, preps, sws, latq, surqs, ets, percs, gwqs]),
+        columns=["subs","mons", "precip", "sw", "latq", "surq", "et", "perco", "gwq"])
+
+    # conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
+    # hru_df = hru_df.astype(conv_types)
+    sub_df = sub_df.loc[sub_df['mons'] < 13]
+    sub_df['mons'] = sub_df['mons'].astype(int)
+    sub_df['subs'] = sub_df['subs'].astype(int)
+
+    return sub_df
+
+def read_output_mgt(wd):
+    with open(os.path.join(wd, 'output.mgt'), 'r') as f:
+        content = f.readlines()
+    subs = [int(i[:5]) for i in content[5:]]
+    hrus = [int(i[5:10]) for i in content[5:]]
+    yrs = [int(i[10:16]) for i in content[5:]]
+    mons = [int(i[16:22]) for i in content[5:]]
+    doys = [int(i[22:28]) for i in content[5:]]
+    areas = [float(i[28:39]) for i in content[5:]]
+    cfp = [str(i[39:55]).strip() for i in content[5:]]
+    opt = [str(i[55:70]).strip() for i in content[5:]]
+    irr = [-999 if i[150:160].strip() == '' else float(i[150:160]) for i in content[5:]]
+    mgt_df = pd.DataFrame(
+        np.column_stack([subs, hrus, yrs, mons, doys, areas, cfp, opt, irr]),
+        columns=['sub', 'hru', 'yr', 'mon', 'doy', 'area_km2', 'cfp', 'opt', 'irr_mm'])
+    mgt_df['irr_mm'] = mgt_df['irr_mm'].astype(float)
+    mgt_df['irr_mm'].replace(-999, np.nan, inplace=True)
+    return mgt_df
+
+
+def read_output_hru(wd):
+    with open(os.path.join(wd, 'output.hru'), 'r') as f:
+        content = f.readlines()
+    lulc = [(i[:4]) for i in content[9:]]
+    hrus = [str(i[10:19]) for i in content[9:]]
+    subs = [int(i[19:24]) for i in content[9:]]
+    mons = [(i[29:34]) for i in content[9:]]
+    areas = [float(i[34:44]) for i in content[9:]]
+    irr = [float(i[74:84]) for i in content[9:]]
+
+    hru_df = pd.DataFrame(
+        np.column_stack([lulc, hrus, subs, mons, areas, irr]),
+        columns=['lulc', 'hru', 'sub', 'mon', 'area_km2', 'irr_mm'])
+
+    conv_types = {'hru':str, 'sub':int, 'mon':float, 'area_km2':float, 'irr_mm':float}
+    hru_df = hru_df.astype(conv_types)
+    hru_df = hru_df.loc[hru_df['mon'] < 13]
+    hru_df['mon'] = hru_df['mon'].astype(int)
+    hru_df['irr_m3'] = (hru_df['area_km2']*1000000) * (hru_df['irr_mm']*0.001)
+
+    return hru_df
+
+
+def create_model_in(wd, excel_file):
+    df = pd.read_excel(os.path.join(wd, excel_file), dtype=str, names=[0,1,2,3])
+    df['left_col'] = df.iloc[:, [0,1,2]].fillna('').sum(axis=1)
+    df['right_col'] = df.iloc[:, 3].astype(float).map(lambda x: '{:<12.10e}'.format(x))
+    SFMT_LONG = lambda x: "{0:<50s} ".format(str(x))
+    with open(os.path.join(wd, "model.in"), 'w') as f:
+        f.write(df.loc[:, ["left_col", "right_col"]].to_string(
+                                                    col_space=0,
+                                                    formatters=[SFMT_LONG, SFMT_LONG],
+                                                    index=False,
+                                                    header=False,
+                                                    justify="left"
+                                                    )
+                )
+    print(df)
+
+
+
+def create_model_in_tpl(wd, excel_file):
+    df = pd.read_excel(os.path.join(wd, excel_file), sheet_name="Sheet2", dtype=str, names=[0,1,2,3])
+    df['left_col'] = df.iloc[:, [0,1,2]].fillna('').sum(axis=1)
+    df['right_col'] = df.iloc[:, 3].map(lambda x: " ~   {0:15s}   ~".format(x))
+    SFMT_LONG = lambda x: "{0:<50s} ".format(str(x))
+    with open(os.path.join(wd, "model.in.tpl"), 'w') as f:
+        f.write(df.loc[:, ["left_col", "right_col"]].to_string(
+                                                    col_space=0,
+                                                    formatters=[SFMT_LONG, SFMT_LONG],
+                                                    index=False,
+                                                    header=False,
+                                                    justify="left"
+                                                    )
+                )
+    print(df)
 
 
 
 
 if __name__ == '__main__':
-    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    wd = "D:\\tmp\\swatmf_dir\\backup"
-    outwd = "D:\\tmp\\sols_modified"
+    wd = "D:/Projects/Watersheds/MiddleBosque"
+    infile = "streamflow_obd_usgs.txt"
+    stdate = '1/1/1980'
+    eddate = '12/31/2022'
+    colnam = "135053_00060_00003"
+    excel_file = 'swat_pars.xlsx'
+    # sites = ['08095300']
 
-    modify_sol(wd, outwd)
-
-
-
-    #     sim_stf = pd.read_csv(
-    #                     swatcalfile,
-    #                     delim_whitespace=True,
-    #                     skiprows=9,
-    #                     usecols=[1, 3, 6],
-    #                     names=["date", "filter", "stf_sim"],
-    #                     index_col=0)        
-    
-    # # def create_model_in(self):
-
+    # print(os.path.abspath(swatmf.__file__))
+    create_model_in_tpl(wd, excel_file)

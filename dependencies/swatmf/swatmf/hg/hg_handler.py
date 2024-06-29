@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import datetime
 from tqdm import tqdm
-from .. import utils
-from .. import swatmf_pst_utils
+from swatmf import swatmf_pst_utils
+from swatmf.utils import swat_utils 
 
 
 
@@ -13,7 +13,7 @@ class Hg(object):
     def __init__(self, wd):
         os.chdir(wd)
         self.hg_sub_interaction =None
-        startDate, endDate, startDate_warmup, endDate_warmup = utils.define_sim_period()
+        startDate, endDate, startDate_warmup, endDate_warmup = swat_utils.define_sim_period()
         self.sim_start = startDate
         self.sim_end = endDate
         self.sim_start_warm = startDate_warmup
@@ -131,7 +131,7 @@ class Hg(object):
     def hg_sub_contr(self):
         hg_sub_file = 'output-mercury.sub'
         hg_sub_df = pd.read_csv(hg_sub_file,
-                            delim_whitespace=True,
+                            sep=r'\s+',
                             skiprows=2,
                             usecols=[
                                 "SUB",
@@ -164,9 +164,11 @@ class Hg(object):
     def hg_yield(self, rch_id):
         hg_rch_file = 'output-mercury.rch'
         hg_rch_df = pd.read_csv(hg_rch_file,
-                            delim_whitespace=True,
+                            sep=r'\s+',
                             skiprows=2,
                             usecols=["RCH", "Hg0DmgOut", "Hg2DmgOut", "MeHgDmgOut", "Hg0PmgOut", "Hg2PmgOut", "MeHgPmgOut"],
+                            # usecols=["RCH", "Hg0DmgOut", "Hg2DmgOut", "MeHgDmgOut"],
+                            # usecols=["RCH", "Hg0DmgSto", "Hg2DmgSto",  "MeHgDmgSto", "Hg0PmgSto", "Hg2PmgSto"],
                             index_col=0
                         )
         hg_rch_df = hg_rch_df.loc[hg_rch_df["RCH"] == int(rch_id)]
@@ -177,7 +179,7 @@ class Hg(object):
     def hg_rch(self, rch_ids):
         hg_rch_file = 'output-mercury.rch'
         hg_rch_df = pd.read_csv(hg_rch_file,
-                            delim_whitespace=True,
+                            sep=r'\s+',
                             skiprows=2,
                             usecols=["RCH", "Hg2PmgSto"],
                             index_col=0
@@ -196,7 +198,7 @@ class Hg(object):
         hg_rch_file = 'output-mercury.rch'
         # sim_start =  sim_start[:-4] + str(int(sim_start[-4:])+ int(warmup))
         hg_sed_df = pd.read_csv(hg_rch_file,
-                            delim_whitespace=True,
+                            sep=r'\s+',
                             skiprows=2,
                             usecols=["RCH", "SedTHgCppm"],
                             index_col=0
@@ -218,7 +220,7 @@ class Hg(object):
             for g, o in zip(grids, obd_cols):
                 sim_df = pd.read_csv(
                                     'dtw_{}.txt'.format(g),
-                                    delim_whitespace=True,
+                                    sep=r'\s+',
                                     index_col=0,
                                     parse_dates=True,
                                     header=None
@@ -241,7 +243,7 @@ class Hg(object):
             for g, o, elev in zip(grids, obd_cols, elevs):
                 sim_df = pd.read_csv(
                                     'dtw_{}.txt'.format(g),
-                                    delim_whitespace=True,
+                                    sep=r'\s+',
                                     index_col=0,
                                     parse_dates=True,
                                     header=None

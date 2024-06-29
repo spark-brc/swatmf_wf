@@ -3,8 +3,13 @@ parameter estimation and uncertainty analysis with the open-source suite PEST (D
 and 2010b, and Doherty and other, 2010).
 """
 
+
+from swatmf import swatmf_pst_utils, gumu_pst_utils, hg
 from .hg_handler import Hg
 from .viz import Viz
+# from ..hg import utils
+# from swatmf import utils 
+# from .viz import Viz
 # from .swatmf_utils import *
 # from .swatmf_viz import *
 # from .swatmf_pst_utils import *
