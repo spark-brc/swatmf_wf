@@ -493,9 +493,6 @@ def get_rels_objs_new(df, obgnme=None):
     return ns, pbias, rsq, rmse, mse, pcc
 
 
-
-
-
 def get_rels_cal_val_objs(wd, pst_file, iter_idx=None, opt_idx=None, calval=None):
     pst = pyemu.Pst(os.path.join(wd, pst_file))
     if iter_idx is None:
@@ -1462,8 +1459,6 @@ def single_plot_fdc_added(
         # for bstc in bstcs:
         dd, eexd = convert_fdc_data(df.best_rel.values)
         ax.plot(eexd*100, dd, lw=2, label="best_rel")
-
-
 
     ax.set_yscale('log')
     ax.set_xlabel(r"Exceedence [%]", fontsize=12)

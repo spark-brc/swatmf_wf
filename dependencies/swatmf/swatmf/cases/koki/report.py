@@ -31,5 +31,13 @@ if __name__ == '__main__':
     # analyzer.single_fdc(dff.resample('M').mean())
     '''
     # for groundwater levels
+    sims = ["sim_g249lyr2", "sim_g249lyr3", "sim_g1203lyr3", "sim_g1205lyr3"]
+    obds = ["obd249lyr2", "obd249lyr3", "obd1203lyr3", "obd1205lyr3"]
+
     gw_df = m1.get_gw_sim()
+    gw_obd = m1.get_gw_obd()
+    # analyzer.plot_gw_sim_obd(ax1[0], gw_df, "sim_g249lyr2", gw_obd_df, "obd249lyr2")
+
+
+
     print(gw_df)
