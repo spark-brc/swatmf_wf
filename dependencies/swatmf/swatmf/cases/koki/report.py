@@ -31,13 +31,26 @@ if __name__ == '__main__':
     # analyzer.single_fdc(dff.resample('M').mean())
     '''
     # for groundwater levels
-    sims = ["sim_g249lyr2", "sim_g249lyr3", "sim_g1203lyr3", "sim_g1205lyr3"]
-    obds = ["obd249lyr2", "obd249lyr3", "obd1203lyr3", "obd1205lyr3"]
+    # subnum = [195, 195, 3, 3]
+    # sims = ["sim_g249lyr2", "sim_g249lyr3", "sim_g1203lyr3", "sim_g1205lyr3"]
+    # obds = ["obd249lyr2", "obd249lyr3", "obd1203lyr3", "obd1205lyr3"]
 
-    gw_df = m1.get_gw_sim()
-    gw_obd = m1.get_gw_obd()
+    # gw_df = m1.get_gw_sim()
+    # gw_obd = m1.get_gw_obd()
     # analyzer.plot_gw_sim_obd(ax1[0], gw_df, "sim_g249lyr2", gw_obd_df, "obd249lyr2")
 
 
 
-    print(gw_df)
+    # for s, o, p in zip(sims, obds, subnum):
+    #     sdf = gw_df.loc[:, s]
+    #     obd = gw_obd.loc[:, o]
+    #     prep = m1.temp_sup(p)
+    #     analyzer.dtw_plot(sdf, obd, prep)
+    
+    static_dtw = pd.read_csv('dtw_sim_static.txt', comment="#", sep=r'\s+')
+    static_dtw = static_dtw.loc[static_dtw['sim'] < 0]
+    print(static_dtw)
+    static_dtw = static_dtw.drop(5)
+    print(static_dtw)
+    analyzer.dtw_1to1_plot_(static_dtw)
+

@@ -655,6 +655,163 @@ def create_rels_objs(wd, pst_file, iter_idx):
     pt_oe_df.to_csv(os.path.join(wd, "{0}.{1}.obs.objs.csv".format(pst_nam, iter_idx)))
     pt_par_df.to_csv(os.path.join(wd, "{0}.{1}.par.objs.csv".format(pst_nam, iter_idx)))
 
+def dtw_plot(sim, obd, prep):
+    df = pd.concat([sim, obd, prep], axis=1)
+    df.dropna(inplace=True)
+    colnams = df.columns.tolist()
+    # plot
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.grid(True)
+    ax.plot(df.index, df.iloc[:, 0], label='Simulated', color='green', alpha=0.7)
+    ax.scatter(
+        df.index, df.iloc[:, 1], label='Observed',
+        # color='red',
+        facecolors="None", edgecolors='red',
+        lw=1.5,
+        alpha=0.4,
+        # zorder=2,
+        )
+    # ax.plot(df.index, df.iloc[:, 1], color='red', alpha=0.4, zorder=2,)
+    ax2=ax.twinx()
+    ax2.bar(
+        df.index, df.prep, label='Precipitation',
+        width=10,
+        color="blue", align='center', alpha=0.5, zorder=0)
+    ax2.set_ylabel("Precipitation $(mm)$",color="blue",fontsize=14)
+    ax.set_ylabel("Depth to Water $(m)$",fontsize=14)
+    ax2.invert_yaxis()
+    ax2.set_ylim(df.prep.max()*3, 0)
+    ax.margins(y=0.2)
+    ax.tick_params(axis='both', labelsize=12)
+    ax2.tick_params(axis='y', labelsize=12)    
+    # '''
+    # add stats
+    df = df.drop('prep', axis=1)
+    org_stat = df.dropna()
+
+    sim_org = org_stat.iloc[:, 0].to_numpy()
+    obd_org = org_stat.iloc[:, 1].to_numpy()
+    df_nse = evaluator(nse, sim_org, obd_org)
+    df_rmse = evaluator(rmse, sim_org, obd_org)
+    df_pibas = evaluator(pbias, sim_org, obd_org)
+    r_squared = (
+        ((sum((obd_org - obd_org.mean())*(sim_org - sim_org.mean())))**2)/
+        ((sum((obd_org - obd_org.mean())**2)* (sum((sim_org - sim_org.mean())**2))))
+        )      
+    ax.text(
+        0.95, 0.05,
+        'R-Squared: {:.3f} | RMSE: {:.3f} | PBIAS: {:.3f}'.format(r_squared, df_rmse[0], df_pibas[0]),
+        horizontalalignment='right',fontsize=10,
+        bbox=dict(facecolor='green', alpha=0.5),
+        transform=ax.transAxes
+        )  
+    ax.set_title(colnams[0], loc='center', fontsize=12)   
+    fig.tight_layout()
+    lines, labels = fig.axes[0].get_legend_handles_labels()
+    ax.legend(
+        lines, labels, loc = 'lower left', ncol=5,
+        # bbox_to_anchor=(0, 0.202),
+        fontsize=12)
+    # plt.legend()
+    # '''
+    plt.show()   
+
+
+def dtw_1to1_plot(df):
+    fig, ax = plt.subplots(figsize=(7,6))
+    ax.scatter(
+            df['sim'], df['obd'],
+            facecolors="green", edgecolors='green',
+            s=140,
+            lw=1.5,
+            alpha=0.3,
+            zorder=10,
+            marker='o',
+            )
+
+    x_cal = df['sim'].tolist()
+    y_cal = df['obd'].tolist()
+    # ax.plot([0, 21], [0, 21], '--', color="gray", lw=2, alpha=0.5)
+
+    corrl_matrix_cal = np.corrcoef(x_cal, y_cal)
+    corrl_xy_cal = corrl_matrix_cal[0,1]
+    r_squared_cal = corrl_xy_cal**2
+    pbias_cal = evaluator(pbias, df['sim'].to_numpy(), df['obd'].to_numpy())
+    m_cal, b_cal = np.polyfit(x_cal, y_cal, 1)
+    ax.plot(np.array(x_cal), (m_cal*np.array(x_cal)) + b_cal, 'green', alpha=1)
+    ax.set_xlabel('Simulated Groundwater Head $(m)$', fontsize=16)
+    ax.set_ylabel('Observed Groundwater Head $(m)$', fontsize=16)
+    ax.text(
+            0.05, 0.9,
+            '$R^2$: {:.3f} | PBIAS: {:.3f}'.format(r_squared_cal, pbias_cal[0]),
+            fontsize=18,
+            horizontalalignment='left',
+            bbox=dict(facecolor='lightgreen'),
+            # bbox=dict(facecolor='bisque'),
+            # bbox=dict(facecolor='peachpuff'),
+            transform=ax.transAxes
+            )
+
+    ax.tick_params(axis='both', labelsize=14)
+    # ax.set_xlim(-35, 0)
+    # ax.set_ylim(-35, 0)
+    # plt.legend(fontsize=16)
+    # plt.savefig('dol_str2.png', dpi=300, bbox_inches="tight")
+    fig.tight_layout()
+    plt.show()
+
+
+def dtw_1to1_plot_(df):
+    groups = df.groupby('grid_id')
+    fig, ax = plt.subplots(figsize=(7,6))
+    # ax.axis('off')
+    for name, group in groups:
+        ax.scatter(
+                group.sim, group.obd,
+                # facecolors=df.grid_id,
+                # edgecolors='green',
+                s=140,
+                lw=1.5,
+                alpha=0.3,
+                zorder=10,
+                marker='o',
+                label=name)
+
+    x_cal = df.sim.tolist()
+    y_cal = df.obd.tolist()
+    # ax.plot([0, 21], [0, 21], '--', color="gray", lw=2, alpha=0.5)
+
+    corrl_matrix_cal = np.corrcoef(x_cal, y_cal)
+    corrl_xy_cal = corrl_matrix_cal[0,1]
+    r_squared_cal = corrl_xy_cal**2
+    pbias_cal = evaluator(pbias, df.sim.to_numpy(), df.obd.to_numpy())
+    m_cal, b_cal = np.polyfit(x_cal, y_cal, 1)
+    ax.plot(np.array(x_cal), (m_cal*np.array(x_cal)) + b_cal, 'green', alpha=1)
+    ax.set_xlabel('Simulated Groundwater Head $(m)$', fontsize=16)
+    ax.set_ylabel('Observed Groundwater Head $(m)$', fontsize=16)
+    ax.text(
+            0.05, 0.9,
+            '$R^2$: {:.3f} | PBIAS: {:.3f}'.format(r_squared_cal, pbias_cal[0]),
+            fontsize=18,
+            horizontalalignment='left',
+            bbox=dict(facecolor='lightgreen'),
+            # bbox=dict(facecolor='bisque'),
+            # bbox=dict(facecolor='peachpuff'),
+            transform=ax.transAxes
+            )
+
+    ax.tick_params(axis='both', labelsize=14)
+    # ax.set_xlim(-35, 0)
+    # ax.set_ylim(-35, 0)
+    # plt.legend(fontsize=16)
+
+    # fig.tight_layout()
+    ax.legend(fontsize=18, loc='lower right', bbox_to_anchor=(1.35, 0))
+    plt.savefig('gr_gw.jpg', dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+
 def wt_plot(plot_df):
 
     colnams = plot_df.columns.tolist()
