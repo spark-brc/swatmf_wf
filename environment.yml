@@ -2,17 +2,19 @@ name: swatmf_wf
 channels:
   - conda-forge
 dependencies:
-  - python=3.10
-  - pandas
-  - numpy
+  - python=3.11
+  - pandas>=2.0
+  - numpy>=1.25
   - matplotlib 
+  - openpyxl
+  - xlrd
   - jupyter 
   - pip
   - notebook 
   - scipy 
   - shapely
   - rtree
-  - pyproj
+  - pyproj>=2.0
   - pyshp
   - psutil
   - git
