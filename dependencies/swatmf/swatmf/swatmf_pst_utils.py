@@ -118,9 +118,10 @@ def init_setup(prj_dir, swatmfwd, swatwd):
         "pestpp-ies.exe",
         "pestpp-opt.exe",
         "pestpp-sen.exe",
-        "model.in",
-        "SUFI2_LH_sample.exe",
-        "Swat_Edit.exe",
+        #"model.in",
+        #"SUFI2_LH_sample.exe",
+        #"Swat_Edit.exe",
+        "swat_pars.db.csv",
         "swatmf_rel230922.exe"
         ]
     suffix = ' passed'
@@ -150,6 +151,7 @@ def init_setup(prj_dir, swatmfwd, swatwd):
     print(" Creating 'backup' folder ..." + colored(suffix, 'green'))
 
     # create echo
+    ''' NOTE: this is for old version
     print(" Creating 'echo' folder ...",  end='\r', flush=True)
     if not os.path.isdir(os.path.join(main_opt_path, 'echo')):
         os.makedirs(os.path.join(main_opt_path, 'echo'))
@@ -159,6 +161,7 @@ def init_setup(prj_dir, swatmfwd, swatwd):
     if not os.path.isdir(os.path.join(main_opt_path, 'sufi2.in')):
         os.makedirs(os.path.join(main_opt_path, 'sufi2.in'))
     print(" Creating 'sufi2.in' folder ..."  + colored(suffix, 'green'))
+    '''
 
     for j in filesToCopy:
         if not os.path.isfile(os.path.join(main_opt_path, j)):
@@ -200,8 +203,8 @@ def extract_day_stf(channels, start_day, warmup, cali_start_day, cali_end_day):
         sim_stf_f.index = pd.date_range(start_day, periods=len(sim_stf_f.stf_sim))
         sim_stf_f = sim_stf_f[cali_start_day:cali_end_day]
         sim_stf_f.to_csv('stf_{:03d}.txt'.format(i), sep='\t', encoding='utf-8', index=True, header=False, float_format='%.7e')
-        print('stf_{:03d}.txt file has been created...'.format(i))
-    print('Finished ...')
+        print(' >>> stf_{:03d}.txt file has been created...'.format(i))
+    print(' >>> Finished ...')
 
 
 def extract_month_stf(channels, start_day, warmup, cali_start_day, cali_end_day):
@@ -336,8 +339,8 @@ def extract_depth_to_water(grid_ids, start_day, end_day, time_step="day"):
                         'dtw_{}.txt'.format(i), sep='\t', encoding='utf-8',
                         index=True, header=False, float_format='%.7e'
                         )
-        print('dtw_{}.txt file has been created...'.format(i))
-    print('Finished ...')
+        print(' >>> dtw_{}.txt file has been created...'.format(i))
+    print(' >>> Finished ...')
 
 
 def extract_depth_to_water_layer(dtw_df, start_day, end_day, time_step="day"):
@@ -505,7 +508,7 @@ def stf_obd_to_ins(srch_file, col_name, cal_start, cal_end, time_step=None):
                         index_col=0,
                         parse_dates=True)
 
-    result = pd.concat([stf_obd, stf_sim], axis=1)
+    result = pd.concat([stf_sim, stf_obd], axis=1)
 
     result['tdate'] = pd.to_datetime(result.index)
     result['month'] = result['tdate'].dt.month
@@ -566,7 +569,7 @@ def mf_obd_to_ins(wt_file, col_name, cal_start, cal_end, time_step="day"):
                         index_col=0,
                         parse_dates=True)
 
-    result = pd.concat([mf_obd, wt_sim], axis=1)
+    result = pd.concat([wt_sim, mf_obd], axis=1)
 
     result['tdate'] = pd.to_datetime(result.index)
     result['day'] = result['tdate'].dt.day

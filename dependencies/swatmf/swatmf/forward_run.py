@@ -13,6 +13,7 @@ from swatmf import swatmf_pst_utils
 from swatmf.handler import SWATMFout
 from swatmf.utils import swat_configs
 from swatmf.utils import mf_configs
+from swatmf.hg import hg_handler
 
 
 wd = os.getcwd()
@@ -48,7 +49,8 @@ def execute_swatmf():
     des = "running model"
     time_stamp(des)
     # pyemu.os_utils.run('APEX-MODFLOW3.exe >_s+m.stdout', cwd='.')
-    pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
+    # pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
+    pyemu.os_utils.run('smrt-hg.exe', cwd='.')
 
 def extract_stf_results(subs, sim_start, warmup, cal_start, cal_end):
     if time_step == 'day':
@@ -82,6 +84,8 @@ def extract_baseflow_results(subs, sim_start, cal_start, cal_end):
     swatmf_pst_utils.extract_month_baseflow(subs, sim_start, cal_start, cal_end)
 
 if __name__ == '__main__':
+    # wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\dataset_20240625_v02"
+    # wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\m01-base\\main_opt"
     os.chdir(wd)
     swatmf_con = pd.read_csv(
         'swatmf.con', sep='\t', names=['names', 'vals'], index_col=0, comment="#"
@@ -99,25 +103,22 @@ if __name__ == '__main__':
     time_step = swatmf_con.loc['time_step','vals']
     pp_act = swatmf_con.loc['pp_included', 'vals']
 
-    # modifying river pars
-    if swatmf_con.loc['riv_parm', 'vals'] != 'n':
-        modify_riv_pars()
-    if swatmf_con.loc['pp_included', 'vals'] != 'n':
-        pp_included = swatmf_con.loc['pp_included','vals'].strip('][').split(', ')
-        pp_included = [i.replace("'", "").strip() for i in pp_included]  
-        modify_hk_sy_pars_pp(pp_included)
-    
+    modify_hk_sy_pars_pp(['hk0pp.dat', 'sy0pp.dat', 'ss0pp.dat'])
+
     # update SWAT parameters
     m1 = swat_configs.SwatEdit(wd)
-    subbasins = [i for i in range(1, 198)] # NOTE: this is a hard code for koksilah
+    subbasins = m1.read_subs()
     new_parms = m1.read_new_parms()
     m1.param = [new_parms]
     m1.subbasins = [subbasins]
     m1.update_swat_parms()
 
     # update River parameters
-    rivmf = mf_configs.mfEdit(wd)
-    mf_configs.write_new_riv()
+    # modifying river pars
+    if swatmf_con.loc['riv_parm', 'vals'] != 'n':
+        rivmf = mf_configs.mfEdit(wd)
+        mf_configs.write_new_riv()
+
 
 
     # execute model
@@ -145,6 +146,19 @@ if __name__ == '__main__':
                             )
         print("GW sim extraction finished ...")
 
+    '''
+    '''
+    # NOTE: for Hg
+    
+    # this port is gumu
+    hg_wt_subs = [3, 4, 9, 11]
+    hg_wt_dates = ['6/3/2020', '9/21/2020', '12/7/2020', '3/3/2021', '8/30/2021']
+    hg_handler.extract_hg_wt_mean(hg_wt_subs, sim_start, warmup, cal_start, cal_end, hg_wt_dates)
+    
+    hg_sed_subs = [2, 3, 4, 5, 9, 11]
+    hg_sed_dates = ['6/30/2020', '12/31/2020', '11/30/2021']
+    hg_handler.extract_hg_sed_mean(hg_sed_subs, sim_start, warmup, cal_start, cal_end, hg_sed_dates)
+
     # # NOTE: this is a temporary function
     # if swatmf_con.loc['avg_grids', 'vals'] != 'n':
     #     avg_grids = swatmf_con.loc['avg_grids','vals'].strip('][').split(', ')
@@ -154,6 +168,6 @@ if __name__ == '__main__':
     #     extract_avg_depth_to_water(avg_grids, sim_start, avg_stdate, avg_eddate)
 
     # extract mf static depth to waterlevels
-    mfout = SWATMFout(wd)
-    mfout.get_static_gw()
+    # mfout = SWATMFout(wd)
+    # mfout.get_static_gw()
     print(wd)

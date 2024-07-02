@@ -323,7 +323,7 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
         param = param_df.loc[(param_df.ext == ext)].to_dict(orient='index')
         n_line = []
         txtformat = []
-        print(f"  modifying '{ext}' obj ...")
+        print(f" >>> modifying '{ext}' obj ...")
         if ext == 'sol':
             var_list = ['SNAM', 'HYDGRP', 'SOL_ZMX', 'ANION_EXCL', 'SOL_CRK', 'TEXTURE',
                        'SOL_Z', 'SOL_BD', 'SOL_AWC', 'SOL_K', 'SOL_CBN', 'SOL_CLAY', 'SOL_SILT',
