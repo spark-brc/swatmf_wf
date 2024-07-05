@@ -250,8 +250,8 @@ class Hg(object):
                                     )
                 sim_df.rename(columns = {1:'sim'}, inplace = True)
                 obd_df = pd.read_csv(
-                                    'dtw_day.obd',
-                                    sep='\t',
+                                    'dtw_day.obd.csv',
+                                    # sep='\t',
                                     usecols=['date', o],
                                     index_col=0,
                                     parse_dates=True,

@@ -4,9 +4,70 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 import datetime
+from swatmf import analyzer
+from swatmf import handler
 from tqdm import tqdm
 from swatmf import swatmf_pst_utils, gumu_pst_utils, hg
 # from swatmf.hg.hg_handler import h
+
+# user custimized plot
+def temp_plot(stf_obd_df, obd_col, wb_df, viz_ts, gw_df, grid_id, gw_obd_df, gw_obd_col):
+    """_summary_
+
+    :param stf_obd_df: handler.get_stf_sim_obd
+    :type stf_obd_df: dataframe
+    :param obd_col: obd name
+    :type obd_col: stf
+    :param wb_df: handler.get_std_data
+    :type wb_df: dataframe
+    :param viz_ts: time step
+    :type viz_ts: stf
+    :param gw_df: handler.get_gw_sim
+    :type gw_df: dataframe
+    :param grid_id: grid_id name
+    :type grid_id: str
+    :param gw_obd_df: handler.get_gw_obd
+    :type gw_obd_df: dataframe
+    :param gw_obd_col: column name
+    :type gw_obd_col: str
+    """
+    fig = plt.figure(figsize=(10,10))
+    subplots = fig.subfigures(
+                                4, 1, height_ratios=[0.2, 0.2, 0.2, 0.4],
+                            #   hspace=-0.05
+                            )
+
+    ax0 = subplots[0].subplots(1,1)
+    ax1 = subplots[1].subplots(1,2, sharey=False, 
+                    gridspec_kw={
+                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
+                    'wspace': 0.0
+                    })
+    ax2 = subplots[2].subplots(1,2, sharey=False, 
+                    gridspec_kw={
+                    # 'height_ratios': [0.2, 0.2, 0.4, 0.2],
+                    'wspace': 0.0
+                    })
+    ax3 = subplots[3].subplots(4,1, sharex=True, height_ratios=[0.2, 0.2, 0.4, 0.2])
+    # ax3 = subplots[1][1].subplots(2,5)
+
+    # streamflow
+    ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
+    ax0.tick_params(axis='both', labelsize=8)
+    analyzer.plot_stf_sim_obd(ax0, stf_obd_df, obd_col)
+    # '''
+    analyzer.plot_gw_sim_obd(ax1[0], gw_df, "sim_g3685lyr1", gw_obd_df, "obd3685")
+    analyzer.plot_gw_sim_obd(ax1[1], gw_df, "sim_g5687lyr1", gw_obd_df, "obd5687")
+    # plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr2", gw_obd_df, "g1203lyr2")
+    # plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr2", gw_obd_df, "g1205lyr2")
+    analyzer.plot_gw_sim_obd(ax2[0], gw_df, "sim_g5617lyr1",gw_obd_df, "obd5617")
+    analyzer.plot_gw_sim_obd(ax2[1], gw_df, "sim_g5001lyr1", gw_obd_df, "obd5001")
+    # '''
+    analyzer.std_plot(ax3, wb_df, viz_ts)
+    plt.show()
+
+
+
 
 
 
@@ -144,20 +205,59 @@ def gw_hyd_sep():
 
 # def plot_tot():
 if __name__ == '__main__':
-    # wd01 = "d:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\dataset_220720\\dataset" # same as dataset_20240625_v01
-    # wd02 = "D:\\Projects\\Models\\swatmf-Hg_temp\\Hg_bailey (1)\\dataset" # same as dataset_20240625_v01
-    # wd01 = "D:\\Projects\\Models\\swatmf-Hg_temp\\dataset_w_rch" # same as dataset_20240625_v01
-    # wd01 = "D:\\Projects\\Models\\swatmf-Hg_temp\\dataset_w_rch" # same as dataset_20240625_v01
-    
-    wd = "d:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\dataset_20240625_v01"
+
+    wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\gumu_pp_glm"
     os.chdir(wd)
     mod1 = hg.Hg(wd)
     sim_start = '1/1/2010'
-    cal_start = '1/1/2015'
-    cal_end = '12/31/2021'
+    cal_start = '1/1/2011'
+    cal_end = '5/5/2022'
 
     # observation info
-    # stream
+    stf_obd_file = "stf_day.obd.csv"
+    subnums = [1, 3, 4, 5, 11, 13]
+    obd_cols = [f'sub{i:03d}' for i in subnums]
+    m1 = handler.SWATMFout(wd)
+
+    df = pd.DataFrame()
+
+    for subnum, obd_col in zip(subnums, obd_cols):
+        so = m1.get_stf_sim_obd(stf_obd_file, obd_col, subnum)
+        so.columns = ['stf_sim', 'obd']
+        so['sub'] = obd_col
+        df = pd.concat([df, so], axis=0)
+
+    # print(df)
+    # # groundwater
+    # grids = [3685, 5687, 5617, 5001]
+    
+    # obd_cols = ['obd3685', 'obd5687', 'obd5617', 'obd5001']
+    # # obd_cols = ['gw1', 'mw03', 'mw02', 'mw01']
+    # elevs = [34.81, 34.57, 31.61,  22.63]
+    # gw_df = mod1.gw_levels(grids, obd_cols, elevs=elevs)
+    # # gw_df = gw_df[cal_start:cal_end]
+    # print(gw_df)
+    # for i in [f'g{i}' for i in grids]:
+    #     analyzer.dtw_1to1_plot(gw_df.loc[gw_df['grid']==i])
+
+    wb_df = m1.get_std_data()
+    viz_ts = "month"
+    gw_df = m1.get_gw_sim()
+    grid_id = "a"
+    gw_obd = m1.get_gw_obd()
+    gw_obd_col = "b"
+    temp_plot(df, 'obd', wb_df, viz_ts, gw_df, grid_id, gw_obd, gw_obd_col)
+    print(gw_obd)
+
+
+
+    '''
+    '''
+
+
+
+
+    # HG in stream
     hg_wt_subs = [3,4,9,11]
     hg_wt_dates = [
         '6/3/2020', '9/21/2020', '12/7/2020', '3/3/2021', '8/30/2021',
@@ -182,23 +282,16 @@ if __name__ == '__main__':
     nov_df = sed_df[(sed_df.index.month == 11)]
     hg_sed_dff = pd.concat([jun_df, dec_df, nov_df], axis=0)
 
-    # groundwater
-    grids = [3685, 5001, 5617, 5687]
-    obd_cols = ['gw1', 'mw03', 'mw02', 'mw01']
-    elevs = [34.81, 22.63, 31.61, 34.57]
-    gw_df = mod1.gw_levels(grids, obd_cols, elevs=elevs)
-    # gw_df = gw_df[cal_start:cal_end]
-    print(gw_df)
 
 
-    plot_()
-    gw_hyd()
-    gw_hyd_sep()
+    # plot_()
+    # gw_hyd()
+    # gw_hyd_sep()
 
-    # hg_balance()
-    # hg_sub_contrb()
-    # hg_yield()
-    # hg_rch()
+    hg_balance()
+    hg_sub_contrb()
+    hg_yield()
+    hg_rch()
 
 
     # # sub interaction: convert kg to g
@@ -210,6 +303,4 @@ if __name__ == '__main__':
     # print(dfm)
     # dft = dfm.sum()
     # print('{:.2f}m3/year'.format(dft))
-
-
 

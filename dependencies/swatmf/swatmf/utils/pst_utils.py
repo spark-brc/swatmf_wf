@@ -13,6 +13,7 @@ import multiprocessing as mp
 import csv
 from tqdm import tqdm
 from termcolor import colored
+import pyemu
 # from colorama import init
 # from colorama import Fore, Style
 
@@ -934,11 +935,25 @@ def adjust_weight(wd, obs_file, obgnme, adj_perc):
         )
     df.to_csv(os.path.join(wd, obs_file), index=False)
 
+def update_pars(pst_file, working_dir, iter_num, base_par=None):
+    pst = pyemu.Pst(os.path.join(working_dir, pst_file))
+    if base_par is None:
+        base_par = f'{pst_file[:-4]}.{iter_num}.base.par'
+    pst.parrep(parfile=os.path.join(working_dir, base_par))
+    # updates the model input files with parameter values
+    pst.write_input_files(pst_path=working_dir)
+
+
 
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\koksilah_git\\m04-base"
-    obs_file = "koki_zon_rw.obs_data.csv"
-    obgnme = "sub03"
-    adj_perc = 50
+    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\koksilah_git\\m04-base"
+    # obs_file = "koki_zon_rw.obs_data.csv"
+    # obgnme = "sub03"
+    # adj_perc = 50
 
-    adjust_weight(wd, obs_file, obgnme, adj_perc)
+    # adjust_weight(wd, obs_file, obgnme, adj_perc)
+    wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\gumu_pp_glm"
+    pst_file = "gumu_pp_rw.pst"
+    iter_num = 30
+    base_par = "gumu_pp_rw.30.par"
+    update_pars(pst_file, wd, iter_num, base_par=base_par)

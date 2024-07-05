@@ -50,6 +50,7 @@ def execute_swatmf():
     time_stamp(des)
     # pyemu.os_utils.run('APEX-MODFLOW3.exe >_s+m.stdout', cwd='.')
     # pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
+    # pyemu.os_utils.run('smrt_rel230922.exe', cwd='.')
     pyemu.os_utils.run('smrt-hg.exe', cwd='.')
 
 def extract_stf_results(subs, sim_start, warmup, cal_start, cal_end):
