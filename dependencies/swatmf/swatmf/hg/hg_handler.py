@@ -161,6 +161,43 @@ class Hg(object):
         contr_df['tot_contr'] = contr_df["surf_mg"] + contr_df["lat_mg"] + contr_df["perco_mg"] + contr_df["sed_mg"]
         return contr_df
 
+    @property
+    def hg_sub_contr_test(self):
+        hg_sub_file = 'output-mercury.sub'
+        hg_sub_df = pd.read_csv(hg_sub_file,
+                            sep=r'\s+',
+                            skiprows=2,
+                            usecols=[
+                                "SUB", "AREAkm2"
+                                "Hg0SurfqDs", "Hg2SurfqDs", "MHgSurfqDs",
+                                "Hg0LatlqDs", "Hg2LatlqDs", "MHgLatlqDs",
+                                "Hg0PercqDs", "Hg2PercqDs", "MHgPercqDs",
+                                "Hg0SedYlPt", "Hg2SedYlPt", "MHgSedYlPt",
+                                ],
+                            index_col=0
+                        )
+        hg_sub_dff = pd.DataFrame()
+        for s in self.sub_ids:
+            hg_str_sed_df = hg_sub_df.loc[hg_sub_df["SUB"] == int(s)]
+            hg_str_sed_df.index = pd.date_range(self.sim_start_warm, periods=len(hg_str_sed_df))
+            hg_str_sed_df = hg_str_sed_df.drop('SUB', axis=1)
+            hg_sub_dff = hg_sub_dff.add(hg_str_sed_df, fill_value=0)
+        contr_df = pd.concat(
+            [
+                hg_sub_dff.iloc[:, 0:3].sum(axis=1), 
+                hg_sub_dff.iloc[:, 3:6].sum(axis=1),
+                hg_sub_dff.iloc[:, 6:9].sum(axis=1),
+                hg_sub_dff.iloc[:, 9:12].sum(axis=1),
+                ], axis=1
+                )
+        contr_df.rename(
+            columns={0:"surf_mg", 1:"lat_mg", 2:"perco_mg", 3:"sed_mg"}, inplace=True)
+        contr_df['tot_contr'] = contr_df["surf_mg"] + contr_df["lat_mg"] + contr_df["perco_mg"] + contr_df["sed_mg"]
+        return contr_df
+
+
+
+
     def hg_yield(self, rch_id):
         hg_rch_file = 'output-mercury.rch'
         hg_rch_df = pd.read_csv(hg_rch_file,

@@ -217,7 +217,11 @@ def temp():
         hg_str_sed_df.index = pd.date_range("1/1/2010", periods=len(hg_str_sed_df))
         hg_str_sed_df = hg_str_sed_df.drop('SUB', axis=1)
         hg_sub_dff = hg_sub_dff.add(hg_str_sed_df, fill_value=0)
-    print(hg_str_sed_df)
+    
+    hg_sub_dff["Hg0SurfqDs_"] = hg_sub_dff["Hg2SedYlPt"] / hg_sub_dff["AREAkm2"] * 0.01
+    
+    print(hg_sub_dff["Hg2SedYlPt"].sum())
+
 
 
 
@@ -225,8 +229,7 @@ def temp():
 # def plot_tot():
 if __name__ == '__main__':
 
-    # wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\gumu_pp_glm"
-    wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\old_model\\cali_qsm_220620_r03nores\\qsm_50\\SWAT-MODFLOW"
+    wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\gumu_pp_glm"
     os.chdir(wd)
     # temp()
     mod1 = hg.Hg(wd)
