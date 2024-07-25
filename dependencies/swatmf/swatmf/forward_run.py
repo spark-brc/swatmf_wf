@@ -49,9 +49,9 @@ def execute_swatmf():
     des = "running model"
     time_stamp(des)
     # pyemu.os_utils.run('APEX-MODFLOW3.exe >_s+m.stdout', cwd='.')
-    # pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
+    pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
     # pyemu.os_utils.run('smrt_rel230922.exe', cwd='.')
-    pyemu.os_utils.run('smrt-hg.exe', cwd='.')
+    # pyemu.os_utils.run('smrt-hg.exe', cwd='.')
 
 def extract_stf_results(subs, sim_start, warmup, cal_start, cal_end):
     if time_step == 'day':
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     time_step = swatmf_con.loc['time_step','vals']
     pp_act = swatmf_con.loc['pp_included', 'vals']
 
-    modify_hk_sy_pars_pp(['hk0pp.dat', 'sy0pp.dat', 'ss0pp.dat'])
+    # modify_hk_sy_pars_pp(['hk0pp.dat', 'sy0pp.dat', 'ss0pp.dat'])
 
     # update SWAT parameters
     m1 = swat_configs.SwatEdit(wd)
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         print("GW sim extraction finished ...")
 
     '''
-    '''
+
     # NOTE: for Hg
     
     # this port is gumu
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     hg_sed_subs = [2, 3, 4, 5, 9, 11]
     hg_sed_dates = ['6/30/2020', '12/31/2020', '11/30/2021']
     hg_handler.extract_hg_sed_mean(hg_sed_subs, sim_start, warmup, cal_start, cal_end, hg_sed_dates)
-
+    '''
     # # NOTE: this is a temporary function
     # if swatmf_con.loc['avg_grids', 'vals'] != 'n':
     #     avg_grids = swatmf_con.loc['avg_grids','vals'].strip('][').split(', ')
