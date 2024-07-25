@@ -212,6 +212,23 @@ class Hg(object):
         hg_rch_df.index = pd.date_range(self.sim_start_warm, periods=len(hg_rch_df))
         hg_rch_df = hg_rch_df.drop('RCH', axis=1)
         return hg_rch_df
+    
+
+    def hg_yield02(self, rch_id):
+        hg_rch_file = 'output-mercury.rch'
+        hg_rch_df = pd.read_csv(hg_rch_file,
+                            sep=r'\s+',
+                            skiprows=2,
+                            usecols=["RCH", "Hg0DmgOut", "Hg2DmgOut", "MeHgDmgOut", "Hg0PmgOut", "Hg2PmgOut", "MeHgPmgOut"],
+                            # usecols=["RCH", "Hg0DmgOut", "Hg2DmgOut", "MeHgDmgOut"],
+                            # usecols=["RCH", "Hg0DmgSto", "Hg2DmgSto",  "MeHgDmgSto", "Hg0PmgSto", "Hg2PmgSto"],
+                            index_col=0
+                        )
+        hg_rch_df = hg_rch_df.loc[hg_rch_df["RCH"] == int(rch_id)]
+        hg_rch_df.index = pd.date_range(self.sim_start_warm, periods=len(hg_rch_df))
+        hg_rch_df = hg_rch_df.drop('RCH', axis=1)
+        return hg_rch_df
+    
 
     def hg_rch(self, rch_ids):
         hg_rch_file = 'output-mercury.rch'
