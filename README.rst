@@ -103,8 +103,6 @@ A browser window with a Jupyter notebook instance should open. Yay!
    >>> swatmf_pst_utils.init_setup(prj_dir, swatmfwd, swatwd))
 
    Creating 'backup' folder ... passed
-   Creating 'echo' folder ... passed
-   Creating 'sufi2.in' folder ... passed
    'Absolute_SWAT_Values.txt' file copied ... passed
    'pestpp-glm' file copied ... passed
    'pestpp-ies.exe' file copied ... passed
