@@ -75,11 +75,11 @@ To execute jupyter notebook, we need the Miniconda environment.
 
 and hit ENTER.
 
-After your virtual environment setup is complete, change the environment to `swatmf_tut`:  
+After your virtual environment setup is complete, change the environment to `swatmf_wf`:  
 
 .. code-block:: bash
 
-   conda activate swatmf_tut
+   conda activate swatmf_wf
 
 - Launch jupyter notebook 
 
