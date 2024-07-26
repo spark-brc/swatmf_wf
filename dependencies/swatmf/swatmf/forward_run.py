@@ -148,7 +148,6 @@ if __name__ == '__main__':
         print("GW sim extraction finished ...")
 
     '''
-    '''
     # NOTE: for Hg
     
     # this port is gumu
@@ -160,6 +159,7 @@ if __name__ == '__main__':
     hg_sed_dates = ['6/30/2020', '12/31/2020', '11/30/2021']
     hg_handler.extract_hg_sed_mean(hg_sed_subs, sim_start, warmup, cal_start, cal_end, hg_sed_dates)
 
+    '''
     # # NOTE: this is a temporary function
     # if swatmf_con.loc['avg_grids', 'vals'] != 'n':
     #     avg_grids = swatmf_con.loc['avg_grids','vals'].strip('][').split(', ')
