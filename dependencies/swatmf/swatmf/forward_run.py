@@ -148,9 +148,6 @@ if __name__ == '__main__':
         print("GW sim extraction finished ...")
 
     '''
-
-
->>>>>>> 6092255e5ddad7107fb67d5084767e20f8f12cf1
     # NOTE: for Hg
     
     # this port is gumu
