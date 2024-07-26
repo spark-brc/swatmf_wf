@@ -148,8 +148,7 @@ if __name__ == '__main__':
         print("GW sim extraction finished ...")
 
     '''
-<<<<<<< HEAD
-=======
+
 
 >>>>>>> 6092255e5ddad7107fb67d5084767e20f8f12cf1
     # NOTE: for Hg
@@ -162,10 +161,6 @@ if __name__ == '__main__':
     hg_sed_subs = [2, 3, 4, 5, 9, 11]
     hg_sed_dates = ['6/30/2020', '12/31/2020', '11/30/2021']
     hg_handler.extract_hg_sed_mean(hg_sed_subs, sim_start, warmup, cal_start, cal_end, hg_sed_dates)
-<<<<<<< HEAD
-
-=======
->>>>>>> 6092255e5ddad7107fb67d5084767e20f8f12cf1
     '''
     # # NOTE: this is a temporary function
     # if swatmf_con.loc['avg_grids', 'vals'] != 'n':
