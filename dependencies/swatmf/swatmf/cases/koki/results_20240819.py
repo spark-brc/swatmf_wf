@@ -7,11 +7,11 @@ from swatmf import handler
 from swatmf.utils import mf_configs
 
 # koki info
-wd = "d:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_ies"
+wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_ies_300"
 os.chdir(wd)
 pst_file = "koki_zon_rw_ies.pst"
-iter_idx = 2
-post_iter_num = 2
+iter_idx = 10
+post_iter_num = 10
 pst = pyemu.Pst(pst_file)
 pst_nam = pst_file[:-4]
 prior_df = pyemu.ParameterEnsemble.from_csv(
@@ -29,14 +29,28 @@ pr_oe = pyemu.ObservationEnsemble.from_csv(
 pt_oe = pyemu.ObservationEnsemble.from_csv(
     pst=pst,filename=f'{pst_file[:-4]}.{post_iter_num}.obs.csv'
     )
-
+obgnam = "obd1205lyr3"
 
 def koki_ensemble_plot():
-    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="glm")
+    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="base")
+    # df.iloc[:, :-1].astype(float)
+    # df = df[(df > -1000).all(axis=1)]
+    # filtered_df = df[df['Age'] >= 25]
+
+    df = df[(df["pr_min"]> -999)]
+
+
     obgs = df.loc[:, "obgnme"].unique()
-    df = df[(df > -1000).all(axis=1)]
     for obg in obgs:
+        print(obg)
         analyzer.plot_fill_between_ensembles(df.loc[df["obgnme"]==obg], size=3)
+
+def koki_ensemble_plot2():
+    analyzer.plot_tseries_ensembles2(
+        pst, pr_oe, pt_oe, obgnam, 
+        width=12,
+        height=3,
+        dot=False)
 
 def koki_objs():
 # load control file
@@ -154,48 +168,37 @@ def modi_dtw_avg_obd():
 
 
 
-        
-
-
-    
-    # print(line)
-
-
-
-
-
-
 # def plot_tot():
 if __name__ == '__main__':
-    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m05-base"
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_ies_300"
-    # sim_obj_file = "koki_zon_rw_ies.0.obs.csv"
-    # df, rel_nams = handler.filter_candidates2(wd, pst, sim_obj_file)
-    # # for rel in rel_nams:
-    # #     # analyzer.plot_each_obg(df, rel)
-    # #     print(f"done ~ {rel}")
-    # analyzer.fdc(df, rel_nams)
-    # for obn in df.obgnme.unique():
-    #     analyzer.fdc(df, rel_nams, obgnme=obn)
-    # '''
-    stf_obd_file = "stf_day.obd.csv"
-    obd_col = "sub03"
-    subnum = 3
-    m1 = handler.SWATMFout(wd)
-    stf_sim_obd = m1.get_stf_sim_obd(stf_obd_file, obd_col, subnum)
-    # # stf_sim_obd.drop("filter", axis=1, inplace=True)
-    # # analyzer.str_sim_obd(stf_sim_obd)
-    wb_df = m1.get_std_data()
-    viz_ts = "month"
-    gw_df = m1.get_gw_sim()
-    grid_id = "a"
-    gw_obd = m1.get_gw_obd()
-    gw_obd_col = "b"
-    analyzer.single_fdc(stf_sim_obd)
-    temp_plot(stf_sim_obd, obd_col, wb_df, viz_ts, gw_df, grid_id, gw_obd, gw_obd_col)
-    # '''
-    # m1 = mf_configs.mfEdit(wd)
-    # mf_configs.write_new_riv()
+    pst_file = "koki_zon_rw_ies.pst"
+    iter_idx = 14
+    # df = pd.DataFrame(pr_oe, index=pr_oe.index, columns=pr_oe.columns)
+    # print(df.loc[df[pr_oe.columns.values]]<= -1000)
+    # print(pr_oe.columns.values)
+    # df = df[df < -999].dropna(axis=0, how='all')
+    # df = df.dropna(axis=1, how='all')
+    # print(df)
+    # df = df.iloc[df[:, 10:] <= -1000]
+    # print(df.loc[df["g1203ly1d20200304"] < -1000])
+    # df2 = df[(df > -1000).all(axis=1)]
 
-    # obd = m1.load_sim_dtw_file(4011, 3, "2010-01-01")
-    # print(obd)
+    # print(len(df))
+    # print(df2)
+    # analyzer.create_rels_objs(wd, pst_file, 10)
+    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="223")
+    df = df.loc[df["obgnme"]=="sub03"]
+    print(df)
+    # print(analyzer.get_rels_objs_new(df, obgnme="sub01"))
+
+    analyzer.single_plot_fdc_added(df, bstc=True)
+    '''
+
+
+    '''
+
+    ''' sen
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_morris"
+    pst_file = "koki_zon_rw_morris.pst"
+    analyzer.plot_sen_morris(handler.read_morris_msn(wd, pst_file))
+    '''

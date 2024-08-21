@@ -3,6 +3,7 @@ from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import glob
 
 
 def rename_files(src_dir, dst_dir):
@@ -56,11 +57,29 @@ def plot_pd(wd, df):
     plt.show()
 
 
+class MapSPAM(object):
+
+    def __init__(self, wd):
+        os.chdir(wd)
+    
+    def get_uniq_grid_ids(self):
+
+
+        infs = [f for f in glob.glob("*.csv")]
+        # for i in infs:
+
+    
+
+
 if __name__ == '__main__':
     # src_dir = "E:/Study/PEST/2022_The Maths Behind PEST and PEST++/day03/uncertainty_analysis_spark"
     # dst_dir = "E:/Study/PEST/2022_The Maths Behind PEST and PEST++/day03/temp"
     # rename_files(src_dir, dst_dir)
-    wd = "D:\\Projects\\Watersheds\\Ghana\\Data"
-    df = getdap_pd(wd)
-    plot_pd(wd, df)
+    # wd = "D:\\Projects\\Watersheds\\Ghana\\Data"
+    # df = getdap_pd(wd)
+    # plot_pd(wd, df)
 
+
+    wd = "D:\\Projects\\rice_maps\\data\\spam2020V1r0_global_physical_area.csv\\spam2020V1r0_global_physical_area"
+    m1 = MapSPAM(wd)
+    m1.get_uniq_grid_ids()
