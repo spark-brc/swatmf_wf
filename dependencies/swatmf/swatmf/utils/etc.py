@@ -56,19 +56,28 @@ def plot_pd(wd, df):
     plt.savefig('pdepth.png', dpi=300, bbox_inches="tight")
     plt.show()
 
-
 class MapSPAM(object):
 
     def __init__(self, wd):
         os.chdir(wd)
     
+    # def read_file(self):
+
+
     def get_uniq_grid_ids(self):
-
-
         infs = [f for f in glob.glob("*.csv")]
-        # for i in infs:
+        # print(infs)
+        dff = pd.DataFrame()
+        for i in infs:
+            df = pd.read_csv(i, usecols=["grid_code", "x", "y"])
+            dff = pd.concat([dff, df], axis=0)
+        dff.drop_duplicates(subset=['grid_code'], keep='first', inplace=True)
+        dff.sort_values(by=["grid_code"], inplace=True)
+        dff.to_csv('base_pts.csv')
+        print("done")
 
-    
+    def get_uniq_grid_ids(self):
+        infs = [f for f in glob.glob("*.csv")]    
 
 
 if __name__ == '__main__':
@@ -79,7 +88,7 @@ if __name__ == '__main__':
     # df = getdap_pd(wd)
     # plot_pd(wd, df)
 
-
-    wd = "D:\\Projects\\rice_maps\\data\\spam2020V1r0_global_physical_area.csv\\spam2020V1r0_global_physical_area"
+    wd = "/Users/seonggyu.park/Library/CloudStorage/GoogleDrive-seonggyu.park@tamu.edu/Other computers/TR2950X/spam2020V1r0_global_physical_area.csv/spam2020V1r0_global_physical_area"
+    # wd = "D:\\Projects\\rice_maps\\data\\spam2020V1r0_global_physical_area.csv\\spam2020V1r0_global_physical_area"
     m1 = MapSPAM(wd)
     m1.get_uniq_grid_ids()
