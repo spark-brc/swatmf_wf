@@ -970,7 +970,7 @@ def phi_progress_plot(filename):
     df.plot(figsize=(5,5), grid=True)
 
 def plot_tseries_ensembles(
-                    pst, pr_oe, pt_oe, width=10, height=4, dot=True,
+                    pst, pr_oe, pt_oe, width=10, height=4, dot=False,
 #                     onames=["hds","sfr"]
                     ):
     # pst.try_parse_name_metadata()
@@ -1023,7 +1023,89 @@ def plot_tseries_ensembles(
     # fig.tight_layout()
     plt.show()
 
-    
+
+def plot_tseries_ensembles2(
+                    pst, pr_oe, pt_oe, obgnam, width=10, height=3, dot=False,
+                    # onames=["obd249lyr2"]
+                    ):
+    # pst.try_parse_name_metadata()
+    # get the observation data from the control file and select 
+    obs = pst.observation_data.copy()
+    obs = obs.loc[obs.obgnme.apply(lambda x: x in pst.nnz_obs_groups),:]
+    time_col = []
+    for i in range(len(obs)):
+        time_col.append(obs.iloc[i, 0][-8:])
+    obs['time'] = time_col
+    obs['time'] = pd.to_datetime(obs['time'])
+    # only non-zero observations
+    # make a plot
+    ogs = obs.obgnme.unique()
+    ogs.sort()
+    print(ogs)
+
+    # get values for x axis
+    oobs = obs.loc[obs.obgnme==obgnam,:].copy()
+    # oobs.loc[:,"time"] = oobs.loc[:,"time"].astype(str)
+#         oobs.sort_values(by="time",inplace=True)
+    pr_oe = pd.DataFrame(pr_oe, index=pr_oe.index, columns=pr_oe.columns)
+    pr_oe = pr_oe[(pr_oe > -999)]
+
+    tvals = oobs.time.values
+    onames = oobs.obsnme.values
+    # obs['time'] = pd.to_datetime(obs['time'])
+    fig,ax = plt.subplots(figsize=(width, height))
+
+    # '''
+    if dot is True:
+        # plot prior
+        [ax.scatter(tvals,pr_oe.loc[i,onames].values,color="gray",s=30, alpha=0.5) for i in pr_oe.index]
+        # plot posterior
+        [ax.scatter(tvals,pt_oe.loc[i,onames].values,color='b',s=30,alpha=0.2) for i in pt_oe.index]
+        # plot measured+noise 
+        oobs = oobs.loc[oobs.weight>0,:]
+        # tvals = oobs.time.values
+        # onames = oobs.obsnme.values
+        ax.scatter(oobs.time,oobs.obsval,color='red',s=30).set_facecolor("none")
+    if dot is False:
+        # plot prior
+        [ax.plot(tvals,pr_oe.loc[i,onames].values,"0.5",lw=0.5,alpha=0.5) for i in pr_oe.index]
+        # plot posterior
+        [ax.plot(tvals,pt_oe.loc[i,onames].values,"g",lw=0.5,alpha=0.7) for i in pt_oe.index]
+        # plot measured+noise 
+        oobs = oobs.loc[oobs.weight>0,:]
+        # tvals = oobs.time.values
+        # onames = oobs.obsnme.values
+        ax.scatter(oobs.time,oobs.obsval,color='red',s=5, zorder=5, alpha=0.5).set_facecolor("none")
+        # ax.scatter(oobs.time,oobs.obsval,color='red',s=1).set_facecolor("none")
+        # ax.plot(oobs.time,oobs.obsval,"r-",lw=1)
+    ax.plot(tvals,pt_oe.loc["223",onames].values,"b",lw=1, zorder=6)
+
+
+    ax.tick_params(axis='x', labelrotation=90)
+    ax.margins(x=0.01)
+    # ax.set_title(og,loc="left")
+    # fig.tight_layout()
+
+    years = mdates.YearLocator()
+    # print(years)
+    yearsFmt = mdates.DateFormatter('%Y')  # add some space for the year label
+    months = mdates.MonthLocator()
+    monthsFmt = mdates.DateFormatter('%b') 
+    ax.xaxis.set_minor_locator(months)
+    ax.xaxis.set_minor_formatter(monthsFmt)
+    plt.setp(ax.xaxis.get_minorticklabels(), fontsize=6, rotation=90)
+    ax.xaxis.set_major_locator(years)
+    ax.xaxis.set_major_formatter(yearsFmt)
+    # ax.set_xticklabels(["May", "Jun", "Jul", "Aug", "Sep"]*7)
+    ax.tick_params(axis='both', labelsize=8, rotation=0)
+    ax.tick_params(axis = 'x', pad=15)
+    # ax.set_ylabel("Stream Discharge $(m^3/s)$",fontsize=14)
+    # ax.set_ylabel("Depth to water $(m)$",fontsize=14)
+    plt.tight_layout()
+    plt.savefig(f'{obgnam}.png', bbox_inches='tight', dpi=300)
+    plt.show()
+    # '''
+
 def get_par_offset(pst):
     pars = pst.parameter_data.copy()
     pars = pars.loc[:, ["parnme", "offset"]]
@@ -1372,37 +1454,42 @@ def std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
 
 
 def plot_sen_morris(df):
-    df = df.loc[df.sen_mean_abs>1e-6,:]
+    df = df.loc[df.sen_mean_abs>1e10,:]
+    df["sen_mean_abs"] = df["sen_mean_abs"] / 1e10
+    df["sen_std_dev"] = df["sen_std_dev"] / 1e10
     # df.loc[:,["sen_mean_abs","sen_std_dev"]].plot(kind="bar", figsize=(9,3), fontsize=12)
     #ax = plt.gca()
     #ax.set_ylim(1,ax.get_ylim()[1]*1.1)
     # plt.yscale('log');
-    fig,ax = plt.subplots(1,1,figsize=(6,5))
+    fig,ax = plt.subplots(1,1,figsize=(7,5))
     swat_df = df.loc[df["pargp"]=="swat"]
     hk_df = df.loc[df["pargp"]=="hk"]
     ss_df = df.loc[df["pargp"]=="ss"]
     sy_df = df.loc[df["pargp"]=="sy"]
+    rivcd_df = df.loc[df["pargp"]=="rivcd"]
     
     ax.scatter(swat_df.sen_mean_abs,swat_df.sen_std_dev,marker="^",s=80,c="r", alpha=0.5, label="swat")
     ax.scatter(hk_df.sen_mean_abs,hk_df.sen_std_dev,marker="s",s=80,c="b", alpha=0.5, label="hy")
     ax.scatter(ss_df.sen_mean_abs,ss_df.sen_std_dev,marker="o",s=80,c="g", alpha=0.5, label="ss")
     ax.scatter(sy_df.sen_mean_abs,sy_df.sen_std_dev,marker="x",s=80,c="k", alpha=0.5, label="sy")
+    ax.scatter(rivcd_df.sen_mean_abs,rivcd_df.sen_std_dev,marker=">",s=80,c="m", alpha=0.5, label="rivcd")
 
     # tmp_df = tmp_df.iloc[:8]
     for x,y,n in zip(df.sen_mean_abs,df.sen_std_dev,df.index):
-        if x > 1000000:
-            ax.text(x,y,n, fontsize=12)
-    mx = max(ax.get_xlim()[1],ax.get_ylim()[1])
-    mn = min(ax.get_xlim()[0],ax.get_ylim()[0])
-    ax.plot([mn,mx],[mn,mx],"k--", alpha=0.3)
-    ax.set_ylim(mn,mx)
-    ax.set_xlim(mn,mx)
+        # if x > 1e11:
+        ax.text(x+0.5,y,n, fontsize=10)
+    # mx = max(ax.get_xlim()[1],ax.get_ylim()[1])
+    # mn = min(ax.get_xlim()[0],ax.get_ylim()[0])
+    # ax.plot([mn,mx],[mn,mx],"k--", alpha=0.3)
+    # ax.set_ylim(mn,mx)
+    # ax.set_xlim(mn,mx)
     ax.grid()
     ax.set_ylabel(r"$\sigma$", fontsize=12)
     ax.set_xlabel(r"$\mu^*$", fontsize=12)
     ax.tick_params(axis='both', labelsize=12)
     plt.legend(fontsize=12, loc="lower right")
-    plt.tight_layout()  
+    plt.tight_layout()
+    plt.savefig('sen_morris.png', bbox_inches='tight', dpi=300)
     plt.show()  
 
 def get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=None):
