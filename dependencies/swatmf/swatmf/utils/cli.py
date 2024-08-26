@@ -579,10 +579,13 @@ if __name__ == '__main__':
 
     wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather"
     infile = "Africa_grids.csv"
-    lats = [5.6, 5.9]
-    lons = [0.01, 0.1]
+    # lats = [5.6, 5.9]
+    # lons = [0.01, 0.1]
+    lats = [6.7,  6.95]
+    lons = [-1.9, -1.85]
     # sites = ['08095300']
 
     m01 = Cl(wd)
     df_co = m01.check_coordinates(infile, lats, lons)
+    print(df_co)
     df_co.to_csv('cord_filtered.csv')
