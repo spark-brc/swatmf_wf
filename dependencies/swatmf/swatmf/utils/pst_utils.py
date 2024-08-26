@@ -923,10 +923,10 @@ def cvt_stf_day_month_obd(obd_file):
     print("done ...")
     
 
-def adjust_weight(wd, obs_file, obgnme, adj_perc):
+def adjust_weight(wd, obs_file, obgnme, threshold, adj_perc):
     df = pd.read_csv(os.path.join(wd, obs_file))
     df["obgnme"] = np.where(
-        (df['obsval'] < 1) & (df["obgnme"]==obgnme),
+        (df['obsval'] < threshold) & (df["obgnme"]==obgnme),
         obgnme+"_base", df["obgnme"])
     df["weight_adj"] = np.where(
         (df["obgnme"]==obgnme+"_base"),
@@ -934,6 +934,22 @@ def adjust_weight(wd, obs_file, obgnme, adj_perc):
         df["weight"]
         )
     df.to_csv(os.path.join(wd, obs_file), index=False)
+    print(' >>> done')
+
+
+def add_obs_group(wd, obs_file, obgnme, threshold, suffix):
+    df = pd.read_csv(os.path.join(wd, obs_file))
+    df["obgnme"] = np.where(
+        (df['obsval'] < threshold) & (df["obgnme"]==obgnme),
+        obgnme+f"_{suffix}", df["obgnme"])
+    # df["weight_adj"] = np.where(
+    #     (df["obgnme"]==obgnme+"_base"),
+    #     df["weight"] + (df["weight"]*adj_perc/100), 
+    #     df["weight"]
+    #     )
+    df.to_csv(os.path.join(wd, obs_file[:-4]+"_.csv"), index=False)
+    print(' >>> done')
+
 
 def update_pars(pst_file, working_dir, iter_num, base_par=None):
     pst = pyemu.Pst(os.path.join(working_dir, pst_file))
@@ -950,10 +966,18 @@ if __name__ == '__main__':
     # obs_file = "koki_zon_rw.obs_data.csv"
     # obgnme = "sub03"
     # adj_perc = 50
-
+    '''
     # adjust_weight(wd, obs_file, obgnme, adj_perc)
     wd = "D:\\Projects\\Watersheds\\Gumu\\Analysis\\SWAT-MODFLOWs\\calibrations\\gumu_pp_glm"
     pst_file = "gumu_pp_rw.pst"
     iter_num = 30
     base_par = "gumu_pp_rw.30.par"
     update_pars(pst_file, wd, iter_num, base_par=base_par)
+    '''
+    wd = "D:\\spark\\koksilah\\7th\\koki_7th_base"
+    obs_file = "koki_zon.obs_data.csv"
+    obgnme = "sub03"
+    threshold = 0.2
+    suffix = "base"
+    add_obs_group(wd, obs_file, obgnme, threshold, suffix)
+
