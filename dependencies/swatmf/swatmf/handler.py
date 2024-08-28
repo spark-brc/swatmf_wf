@@ -12,6 +12,9 @@ import math
 import datetime as dt
 from tqdm import tqdm
 from swatmf import analyzer
+import sys
+from shutil import copyfile
+import glob
 
 
 # NOTE: swat output handler
@@ -412,7 +415,6 @@ class SWATMFout(object):
 
 
 
-
 def read_output_mgt(wd):
     with open(os.path.join(wd, 'output.mgt'), 'r') as f:
         content = f.readlines()
@@ -613,11 +615,259 @@ def read_morris_msn(wd, pst_name):
     return df 
 
 
+# from cjfx
+def file_name(path_, extension=True):
+    if extension:
+        fn = os.path.basename(path_)
+    else:
+        fn = os.path.basename(path_).split(".")[0]
+    return(fn)
+
+def read_from(filename, decode_codec = None, v=False):
+    '''
+    a function to read ascii files
+    '''
+    try:
+        if not decode_codec is None: g = open(filename, 'rb')
+        else: g = open(filename, 'r')
+    except:
+        print(
+            "\t! error reading {0}, make sure the file exists".format(filename))
+        return
+
+    file_text = g.readlines()
+    
+    if not decode_codec is None: file_text = [line.decode(decode_codec) for line in file_text]
+
+    if v:
+        print("\t> read {0}".format(file_name(filename)))
+    g.close
+    return file_text
+
+def get_file_size(file_path):
+    return float(os.path.getsize(file_path))/1012
+
+def error(text_):
+    print("\t! {string_}".format(string_=text_))
+
+def create_path(path_name, v=False):
+    path_name = os.path.dirname(path_name)
+    if path_name == '':
+        path_name = './'
+    if not os.path.isdir(path_name):
+        os.makedirs(path_name)
+        if v:
+            print(f"\t> created path: {path_name}")
+    return path_name
+
+# from cjfx
+def copy_file(filename, destination_path, delete_source=False, v = False, replace = True):
+    '''
+    a function to copy files
+    '''
+    if not replace:
+        if exists(destination_path):
+            if v:
+                print(f"\t - file exists, skipping")
+            return
+
+    if not exists(filename):
+        if not v:
+            return
+        print("\t> The file you want to copy does not exist")
+        print(f"\t    - {filename}\n")
+        ans = input("\t> Press  E then ENTER to Exit or C then ENTER to continue: ")
+        counter = 0
+        while (not ans.lower() == "c") and (not ans.lower() == "e"):
+            ans = input("\t> Please, press E then ENTER to Exit or C then ENTER to continue: ")
+            if counter > 2:
+                print("\t! Learn to read instrunctions!!!!")
+            counter += 1
+
+        if ans.lower() == 'e': quit()
+        if ans.lower() == 'c':
+            write_to("log.txt", f"{filename}\n", mode='append')
+            return
+
+    if v:
+        if delete_source:
+            print(f"\t - [{get_file_size(filename)}] moving {filename} to \n\t\t{destination_path}")
+        else:
+            # print(f"\t - [{get_file_size(filename)}] copying {filename} to \n\t\t{destination_path}")
+            sys.stdout.write('\rcopying ' + filename + '                        ')
+            sys.stdout.flush()
+
+    if not os.path.isdir(os.path.dirname(destination_path)):
+        try:
+            os.makedirs(os.path.dirname(destination_path))
+        except:
+            pass
+
+    copyfile(filename, destination_path)
+    if delete_source:
+        try:
+            os.remove(filename)
+        except:
+            error('coule not remove {fl}, make sure it is not in use'.format(fl=filename))
+
+
+def write_to(filename, text_to_write, v=False, mode = "overwrite"):
+    '''
+    a function to write to file
+    modes: overwrite/o; append/a
+    '''
+    try:
+        if not os.path.isdir(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
+            if v:
+                print("! the directory {0} has been created".format(
+                    os.path.dirname(filename)))
+    except:
+        pass
+
+    if (mode == "overwrite") or (mode == "o"):
+        g = open(filename, 'w', encoding="utf-8")
+    elif (mode == "append") or (mode == "a"):
+        g = open(filename, 'a', encoding="utf-8")
+    try:
+        g.write(text_to_write)
+        if v:
+            print('\n\t> file saved to ' + filename)
+    except PermissionError:
+        print("\t> error writing to {0}, make sure the file is not open in another program".format(
+            filename))
+        response = input("\t> continue with the error? (Y/N): ")
+        if response == "N" or response == "n":
+            sys.exit()
+    g.close
+
+
+def exists(path_):
+    if os.path.isdir(path_):
+        return True
+    if os.path.isfile(path_):
+        return True
+    return False
+
+
+def read_temp(wd, inf, cropBHU):
+    df = pd.read_csv(os.path.join(wd, inf), skiprows=1, names=['tmax', 'tmin'], na_values=-999)
+    stdate = read_from(os.path.join(wd, inf))[0]
+    df.index = pd.date_range(start=stdate, periods=len(df))
+    df['tmean'] = (df['tmin'] + df['tmax'])/2
+    df["HU"] = df['tmean'] - cropBHU
+    df.loc[df['HU'] < 0, 'HU'] = 0
+    df["cumulative_VAL"] = df.groupby(df.index.year)["HU"].cumsum()
+    df.to_csv(os.path.join(wd, 'test.csv'))
+    return df
+
+
+def plot_violin(wd, df):
+    # Boxplot
+    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
+    f, ax = plt.subplots(figsize=(3,6))
+    month_names = [
+                'tmax','tmin', 'tmean',
+                ]
+    # plot. Set color of marker edge
+    flierprops = dict(
+                    marker='o', 
+                    markerfacecolor='#fc0384', 
+                    markersize=7,
+                    # linestyle='None',
+                    # markeredgecolor='none',
+                    alpha=0.3)
+    # ax.boxplot(data, flierprops=flierprops)
+    r = ax.violinplot(
+        df.values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
+        quantiles=[[0.25, 0.75]]*3,
+        bw_method='silverman'
+        )
+    r['cmeans'].set_color('r')
+    r['cquantiles'].set_color('r')
+    r['cquantiles'].set_linestyle(':')
+    # r['cquantiles'].set_linewidth(3)
+    colors = ['#c40243', "#04b0db", '#038f18', ]
+    for c, pc in zip(colors, r['bodies']):
+        pc.set_facecolor(c)
+    #     pc.set_edgecolor('black')
+        pc.set_alpha(0.4)
+
+    ax.set_xticks([i+1 for i in range(3)])
+    # ax.set_xticklabels(df_m.keys(), rotation=90)
+    ax.set_xticklabels(month_names)
+    ax.tick_params(axis='both', labelsize=12)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    plt.tight_layout()
+    ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
+    plt.savefig(os.path.join(wd, 'viloin_plot.png'), dpi=300, bbox_inches="tight")
+    plt.show()
+
+def plot_violin2(wd, df):
+    # Boxplot
+    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
+    f, axes = plt.subplots(nrows=1, ncols=4, figsize=(8,6), sharey=True)
+    month_names = [
+                'tmax','tmin', 'tmean',
+                ]
+    # plot. Set color of marker edge
+    flierprops = dict(
+                    marker='o', 
+                    markerfacecolor='#fc0384', 
+                    markersize=7,
+                    # linestyle='None',
+                    # markeredgecolor='none',
+                    alpha=0.3)
+    # ax.boxplot(data, flierprops=flierprops)
+    os.chdir(wd)
+    tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
+
+    for ax, tmp_f in zip(axes, tmp_files):
+        print(tmp_f)
+        df = read_temp(wd, tmp_f)
+
+        r = ax.violinplot(
+            df.values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
+            quantiles=[[0.25, 0.75]]*3,
+            bw_method='silverman'
+            )
+        r['cmeans'].set_color('r')
+        r['cquantiles'].set_color('r')
+        r['cquantiles'].set_linestyle(':')
+        # r['cquantiles'].set_linewidth(3)
+        colors = ['#c40243', "#04b0db", '#038f18', ]
+        for c, pc in zip(colors, r['bodies']):
+            pc.set_facecolor(c)
+        #     pc.set_edgecolor('black')
+            pc.set_alpha(0.4)
+
+        ax.set_xticks([i+1 for i in range(3)])
+        # ax.set_xticklabels(df_m.keys(), rotation=90)
+        ax.set_xticklabels(month_names)
+        ax.tick_params(axis='both', labelsize=12)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(axis='y')
+    # ax.spines['bottom'].set_visible(False)
+    # ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(wd, 'viloin_plot.png'), dpi=300, bbox_inches="tight")
+    plt.show()
+
 
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_morris"
-    pst_name = "koki_zon_rw_morris.pst"
-    # read_morris_msn(wd, pst_name)
-    analyzer.plot_sen_morris(read_morris_msn(wd, pst_name))
+    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_morris"
+    # pst_name = "koki_zon_rw_morris.pst"
+    # # read_morris_msn(wd, pst_name)
+    # analyzer.plot_sen_morris(read_morris_msn(wd, pst_name))
+
+    wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\dawhenya_weather"
+    os.chdir(wd)
+    tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
+    cropBHU = 10
+    df = read_temp(wd, tmp_files[1], cropBHU)
+    print(df)

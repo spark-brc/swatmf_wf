@@ -969,11 +969,10 @@ def phi_progress_plot(filename):
     df = df.set_index('Model Runs')
     df.plot(figsize=(5,5), grid=True)
 
-def plot_tseries_ensembles(
+def plot_tseries_ensembles_old(
                     pst, pr_oe, pt_oe, width=10, height=4, dot=False,
 #                     onames=["hds","sfr"]
                     ):
-    # pst.try_parse_name_metadata()
     # get the observation data from the control file and select 
     obs = pst.observation_data.copy()
     obs = obs.loc[obs.obgnme.apply(lambda x: x in pst.nnz_obs_groups),:]
@@ -981,10 +980,7 @@ def plot_tseries_ensembles(
     for i in range(len(obs)):
         time_col.append(obs.iloc[i, 0][-6:])
     obs['time'] = time_col
-#     # onames provided in oname argument
-#     obs = obs.loc[obs.oname.apply(lambda x: x in onames)]
-    # only non-zero observations
-#     obs = obs.loc[obs.obgnme.apply(lambda x: x in pst.nnz_obs_groups),:]
+
     # make a plot
     ogs = obs.obgnme.unique()
     fig,axes = plt.subplots(len(ogs),1,figsize=(width,height*len(ogs)))
@@ -1024,10 +1020,18 @@ def plot_tseries_ensembles(
     plt.show()
 
 
-def plot_tseries_ensembles2(
-                    pst, pr_oe, pt_oe, obgnam, width=10, height=3, dot=False,
+def plot_tseries_ensembles(
+                    pst, pr_oe, pt_oe, obgnam, width=10, height=3, 
+                    dot=False, bstcd=None,
+                    pt_fill=None,
+                    ymin=None,
+                    ymax=None,
                     # onames=["obd249lyr2"]
                     ):
+    
+    if pt_fill is not None:
+        df = pt_fill.loc[pt_fill["obgnme"]==obgnam]
+        print(df)
     # pst.try_parse_name_metadata()
     # get the observation data from the control file and select 
     obs = pst.observation_data.copy()
@@ -1055,7 +1059,7 @@ def plot_tseries_ensembles2(
     # obs['time'] = pd.to_datetime(obs['time'])
     fig,ax = plt.subplots(figsize=(width, height))
 
-    # '''
+
     if dot is True:
         # plot prior
         [ax.scatter(tvals,pr_oe.loc[i,onames].values,color="gray",s=30, alpha=0.5) for i in pr_oe.index]
@@ -1068,17 +1072,30 @@ def plot_tseries_ensembles2(
         ax.scatter(oobs.time,oobs.obsval,color='red',s=30).set_facecolor("none")
     if dot is False:
         # plot prior
-        [ax.plot(tvals,pr_oe.loc[i,onames].values,"0.5",lw=0.5,alpha=0.5) for i in pr_oe.index]
+        [ax.plot(
+            tvals,pr_oe.loc[i,onames].values,"0.5",lw=0.5,alpha=0.6,
+            label="Prior ensemble" if i == pr_oe.index[-1] else None,
+            ) for i in pr_oe.index]
         # plot posterior
-        [ax.plot(tvals,pt_oe.loc[i,onames].values,"g",lw=0.5,alpha=0.7) for i in pt_oe.index]
+        if pt_fill is not None:
+            ax.fill_between(
+                df.index, df.pt_min, df.pt_max, interpolate=False, facecolor="g", alpha=0.6, label="Posterior ensemble",
+                zorder=2)
+        else:
+            [ax.plot(tvals,pt_oe.loc[i,onames].values,"g",lw=0.5,alpha=0.7) for i in pt_oe.index]
         # plot measured+noise 
         oobs = oobs.loc[oobs.weight>0,:]
         # tvals = oobs.time.values
         # onames = oobs.obsnme.values
-        ax.scatter(oobs.time,oobs.obsval,color='red',s=5, zorder=5, alpha=0.5).set_facecolor("none")
+        ax.scatter(
+            oobs.time,oobs.obsval,color='red',s=5, zorder=5, alpha=0.5,
+            label="Observed"
+            ).set_facecolor("none")
         # ax.scatter(oobs.time,oobs.obsval,color='red',s=1).set_facecolor("none")
         # ax.plot(oobs.time,oobs.obsval,"r-",lw=1)
-    ax.plot(tvals,pt_oe.loc["223",onames].values,"b",lw=1, zorder=6)
+    if bstcd is not None:
+        ax.plot(tvals,pt_oe.loc[bstcd, onames].values,"b",lw=1, zorder=6, label="Best estimation")
+
 
 
     ax.tick_params(axis='x', labelrotation=90)
@@ -1099,11 +1116,19 @@ def plot_tseries_ensembles2(
     # ax.set_xticklabels(["May", "Jun", "Jul", "Aug", "Sep"]*7)
     ax.tick_params(axis='both', labelsize=8, rotation=0)
     ax.tick_params(axis = 'x', pad=15)
-    # ax.set_ylabel("Stream Discharge $(m^3/s)$",fontsize=14)
+    if ymin is not None:
+        ax.set_ylim(ymin, ymax)
+    # if obgnam
+    # ax.set_ylabel("Stream Discharge $(m^3/s)$",fontsize=10)
     # ax.set_ylabel("Depth to water $(m)$",fontsize=14)
+    # plt.legend(
+    #     fontsize=10,
+    #     ncol=4
+    #     # loc="lower left"
+    #     )
     plt.tight_layout()
-    plt.savefig(f'{obgnam}.png', bbox_inches='tight', dpi=300)
-    plt.show()
+    plt.savefig(f'tensemble_{obgnam}.png', bbox_inches='tight', dpi=300)
+    # plt.show()
     # '''
 
 def get_par_offset(pst):
@@ -1508,7 +1533,7 @@ def get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=None):
             'pr_max': pr_oe.max(),
             'pt_min': pt_oe.min(),
             'pt_max': pt_oe.max(),
-            'best_rel': pt_oe.loc[str(bestrel_idx)],
+            'best_rel': pt_oe.loc[bestrel_idx],
             'obgnme': obs['obgnme'],
             }
             )
@@ -1657,11 +1682,11 @@ def plot_fill_between_ensembles(
     plt.show()
 
 
-def single_plot_fdc_added(
+def single_plot_fdc_added_old(
                     df,
                     width=10, height=8, dot=True,
                     size=None, bstc=False,
-                    orgsim=None
+                    orgsim=None,
                     ):
     """plot flow exceedence
 
@@ -1689,9 +1714,10 @@ def single_plot_fdc_added(
     pt_max_d, pt_max_exd = convert_fdc_data(df.pt_max.values)
 
     fig, ax = plt.subplots(figsize=(width,height))
-    ax.fill_between(pr_min_exd*100, pr_min_d, pr_max_d, interpolate=False, facecolor="0.5", alpha=0.4)
-    ax.fill_between(pt_min_exd*100, pt_min_d, pt_max_d, interpolate=False, facecolor="b", alpha=0.4)
-    ax.scatter(obd_exd*100, obs_d, color='red',s=size, zorder=10, label="Observed").set_facecolor("none")
+    ax.fill_between(pr_min_exd*100, pr_min_d, pr_max_d, interpolate=False, facecolor="0.5", alpha=0.3, label="Prior ensemble")
+    ax.fill_between(pt_min_exd*100, pt_min_d, pt_max_d, interpolate=False, facecolor="g", alpha=0.4, label="Posterior ensemble")
+    ax.scatter(
+        obd_exd*100, obs_d, color='red',s=size, zorder=10, label="Observed", alpha=0.7, linewidths=0.5).set_facecolor("none")
     if orgsim is not None:
         orgsim = orgsim
         org_d, org_exd = convert_fdc_data(orgsim.iloc[:, 0].values)
@@ -1702,7 +1728,7 @@ def single_plot_fdc_added(
         #     ax.plot(eexd*100, dd, lw=2, label=bstc)
         # for bstc in bstcs:
         dd, eexd = convert_fdc_data(df.best_rel.values)
-        ax.plot(eexd*100, dd, lw=2, label="best_rel")
+        ax.plot(eexd*100, dd, "b", lw=2, label="best_rel")
 
     ax.set_yscale('log')
     ax.set_xlabel(r"Exceedence [%]", fontsize=12)
@@ -1715,8 +1741,100 @@ def single_plot_fdc_added(
     plt.show()
     print(os.getcwd())  
 
-    # return pr_oe_min
 
+def single_plot_fdc_added(
+                    pst,
+                    df,
+                    obgnam,
+                    width=10, height=8, dot=True,
+                    size=None, bstc=False,
+                    orgsim=None,
+                    pr_oe=None
+                    ):
+    """plot flow exceedence
+
+    :param df: dataframe created by get_pr_pt_df function
+    :type df: dataframe
+    :param width: figure width, defaults to 10
+    :type width: int, optional
+    :param height: figure hight, defaults to 8
+    :type height: int, optional
+    :param dot: scatter or line, defaults to True
+    :type dot: bool, optional
+    :param size: maker size, defaults to None
+    :type size: int, optional
+    :param bstcs: best candiates, defaults to None
+    :type bstcs: list, optional
+    :param orgsim: _description_, defaults to None
+    :type orgsim: _type_, optional
+    """
+    df = df.loc[df["obgnme"]==obgnam]
+
+    if size is None:
+        size = 30
+    obs_d, obd_exd = convert_fdc_data(df.obd.values)
+    pr_min_d, pr_min_exd = convert_fdc_data(df.pr_min.values)
+    pr_max_d, pr_max_exd = convert_fdc_data(df.pr_max.values)
+    pt_min_d, pt_min_exd = convert_fdc_data(df.pt_min.values)
+    pt_max_d, pt_max_exd = convert_fdc_data(df.pt_max.values)
+    obs = pst.observation_data.copy()
+    obs = obs.loc[obs.obgnme.apply(lambda x: x in pst.nnz_obs_groups),:]
+    time_col = []
+    for i in range(len(obs)):
+        time_col.append(obs.iloc[i, 0][-8:])
+    obs['time'] = time_col
+    obs['time'] = pd.to_datetime(obs['time'])
+    # only non-zero observations
+    # make a plot
+    ogs = obs.obgnme.unique()
+    ogs.sort()
+    print(ogs)
+
+    # get values for x axis
+    oobs = obs.loc[obs.obgnme==obgnam,:].copy()
+    onames = oobs.obsnme.values
+    fig, ax = plt.subplots(figsize=(width,height))
+    if pr_oe:
+        for i in pr_oe.index:
+            # pr_oe_df = pr_oe.loc[i,onames].values
+            pr_d, pr_exd = convert_fdc_data(pr_oe.loc[i,onames].values)
+            ax.plot(
+                    pr_exd*100, pr_d, "0.5",lw=1,alpha=0.5, 
+                    label="Prior ensemble" if i == pr_oe.index[-1] else None,
+                    zorder=1)
+            # print(pr_oe_df)
+    else:
+        ax.fill_between(pr_min_exd*100, pr_min_d, pr_max_d, interpolate=False, facecolor="0.5", alpha=0.3, label="Prior ensemble")
+    ax.fill_between(
+        pt_min_exd*100, pt_min_d, pt_max_d, 
+        interpolate=False, facecolor="g", alpha=0.6, label="Posterior ensemble",
+        zorder=2)
+    ax.scatter(
+        obd_exd*100, obs_d, color='red',s=size, zorder=3, label="Observed", alpha=0.7, linewidths=0.5).set_facecolor("none")
+    if orgsim is not None:
+        orgsim = orgsim
+        org_d, org_exd = convert_fdc_data(orgsim.iloc[:, 0].values)
+        ax.plot(org_exd*100, org_d, c='limegreen', lw=2, label="Original")
+    if bstc is True:
+        # for bstc in bstcs:
+        #     dd, eexd = convert_fdc_data(df.best_rel.values)
+        #     ax.plot(eexd*100, dd, lw=2, label=bstc)
+        # for bstc in bstcs:
+        dd, eexd = convert_fdc_data(df.best_rel.values)
+        ax.plot(eexd*100, dd, "b", lw=2, label="Best estimation",
+                zorder=4)
+    ax.set_yscale('log')
+    ax.set_xlabel(r"Exceedence [%]", fontsize=12)
+    ax.set_ylabel(r"Flow rate $[m^3/s]$", fontsize=12)
+    ax.margins(0.01)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=12, loc="lower left")
+    plt.tight_layout()
+    plt.savefig(f'fdc_{obgnam}.png', bbox_inches='tight', dpi=300)
+    # plt.show()
+    print(os.getcwd())  
+    '''
+    '''
 
 def convert_fdc_data(data):
     data = np.sort(data)[::-1]
@@ -1811,4 +1929,5 @@ def single_fdc(df):
     plt.tight_layout()
     # plt.savefig(f'fdc_{obgnme}.png', bbox_inches='tight', dpi=300)
     plt.show()
+
 

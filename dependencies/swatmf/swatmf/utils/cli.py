@@ -8,6 +8,7 @@ from tqdm import tqdm
 import datetime
 
 
+
 class Cl(object):
     
     def __init__(self, wd):
@@ -552,8 +553,6 @@ def create_model_in(wd, excel_file):
                 )
     print(df)
 
-
-
 def create_model_in_tpl(wd, excel_file):
     df = pd.read_excel(os.path.join(wd, excel_file), sheet_name="Sheet2", dtype=str, names=[0,1,2,3])
     df['left_col'] = df.iloc[:, [0,1,2]].fillna('').sum(axis=1)
@@ -573,19 +572,52 @@ def create_model_in_tpl(wd, excel_file):
 
 
 
+
+
+
+
+
 if __name__ == '__main__':
 
     from swatmf.utils.cli import Cl
+    from swatmf.handler import read_from, file_name, copy_file, write_to
 
     wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather"
     infile = "Africa_grids.csv"
+
+    os.chdir(wd)
+    
+    # # dawena
     # lats = [5.6, 5.9]
     # lons = [0.01, 0.1]
-    lats = [6.7,  6.95]
-    lons = [-1.9, -1.85]
-    # sites = ['08095300']
 
-    m01 = Cl(wd)
-    df_co = m01.check_coordinates(infile, lats, lons)
-    print(df_co)
-    df_co.to_csv('cord_filtered.csv')
+    # # botanga
+    # # lats = [6.7,  6.95]
+    # # lons = [-1.9, -1.85]
+    
+    # m01 = Cl(wd)
+    # df_co = m01.check_coordinates(infile, lats, lons)
+    # print(df_co)
+    # df_co.to_csv('cord_filtered_dawena.csv', index=False)
+
+    
+    ffile = "cord_filtered_dawena.csv"
+    outDir = os.path.join(wd, "dawhenya_weather")
+    fc = read_from(os.path.join(wd, ffile))
+
+    for line in fc[1:]:
+        fileName = f'{line.split(",")[1]}.txt'
+        print(fileName)
+        print(len(read_from(f"./AF/pcp/{fileName}")))
+        copy_file(f"./AF/pcp/{fileName}", f"{outDir}/{file_name(fileName)}")
+    write_to(f"{outDir}/pcp.txt", "".join(fc))
+
+    newFC = f"{fc[0].strip()}\n"
+    for line in fc[1:]:
+        fileName = f'{line.split(",")[1]}.txt'
+        newName = f'{line.split(",")[1]}_TMP.txt'
+        newFC += f'{line.split(",")[0]},{file_name(newName, extension=False)},{line.split(",")[2]},{line.split(",")[3]},{line.split(",")[4].strip()}\n'
+        copy_file(f"./AF/tmp/{fileName}", f"{outDir}/{file_name(newName)}")
+    write_to(f"{outDir}/tmp.txt", newFC)
+
+

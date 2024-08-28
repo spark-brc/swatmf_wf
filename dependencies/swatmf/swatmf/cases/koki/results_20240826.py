@@ -31,8 +31,9 @@ pt_oe = pyemu.ObservationEnsemble.from_csv(
     )
 obgnam = "sub03"
 
-def koki_ensemble_plot():
-    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="base")
+def koki_ensemble_plot1(bestrel_idx):
+    # df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="base")
+    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=bestrel_idx)
     # df.iloc[:, :-1].astype(float)
     # df = df[(df > -1000).all(axis=1)]
     # filtered_df = df[df['Age'] >= 25]
@@ -45,12 +46,6 @@ def koki_ensemble_plot():
         print(obg)
         analyzer.plot_fill_between_ensembles(df.loc[df["obgnme"]==obg], size=3)
 
-def koki_ensemble_plot2():
-    analyzer.plot_tseries_ensembles2(
-        pst, pr_oe, pt_oe, obgnam, 
-        width=12,
-        height=3,
-        dot=False)
 
 def koki_objs():
 # load control file
@@ -186,24 +181,120 @@ if __name__ == '__main__':
     # print(len(df))
     # print(df2)
     # analyzer.create_rels_objs(wd, pst_file, 7)
-    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=141)
-    df = df.loc[df["obgnme"]=="sub03"]
-    print(df)
-    # # print(analyzer.get_rels_objs_new(df, obgnme="sub01"))
-
-    analyzer.single_plot_fdc_added(
-        df, 
-        bstc=True
-        )
-    koki_ensemble_plot2()
+    # print(pt_oe.loc[141])
     '''
+    print(pt_oe.index.values)
+
+    for i in pt_oe.index.values:
+        print(i)
+        df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=i)
+        # print(df)
+        # koki_ensemble_plot()
+        df = df.loc[df["obgnme"]=="sub03"]
+        # print(df)
+        analyzer.single_plot_fdc_added(
+            df, 
+            bstc=True
+            )
+    '''
+    obgnams= [
+        'dtw_static', 'obd1203lyr3', 'obd1205lyr3', 'obd249lyr2', 'obd249lyr3',
+        'sub01', 'sub03', 'sub68']
+
+    bstcd = "273"
+
+    # get fdc plot for sub03
+    df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx=bstcd)
+    # for obgnam in obgnams:
+    #     print(obgnam)
+    analyzer.single_plot_fdc_added(pst, df, obgnams[6], width=6, height=5, size=20, bstc=True,pr_oe=pr_oe)
+
+    # '''
+
+
+    obgnam = obgnams[1]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, width=5, height=3, bstcd=bstcd, pt_fill=df,
+        ymin=-50, ymax=40
+    )
+
+    obgnam = obgnams[2]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, width=5, height=3, bstcd=bstcd, pt_fill=df,
+        ymin=-80, ymax=20
+    )
+
+    obgnam = obgnams[3]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, 
+        # width=5, height=3, 
+        bstcd=bstcd, pt_fill=df,
+        ymin=-43, ymax=10
+    )
+
+    obgnam = obgnams[4]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, 
+        # width=5, height=3, 
+        bstcd=bstcd, pt_fill=df,
+        ymin=-53, ymax=10
+    )
+    obgnam = obgnams[5]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, 
+        width=5, height=3, 
+        bstcd=bstcd, 
+        pt_fill=df,
+        # ymin=-53, ymax=10
+    )
+
+    obgnam = obgnams[6]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, 
+        # width=5, height=3, 
+        bstcd=bstcd, 
+        pt_fill=df,
+        # ymin=-53, ymax=10
+    )
+
+    obgnam = obgnams[7]
+    print(obgnam)
+    print(analyzer.get_rels_objs_new(df, obgnme=obgnam))
+    analyzer.plot_tseries_ensembles(
+        pst, pr_oe, pt_oe, obgnam, 
+        width=5, height=3, 
+        bstcd=bstcd, 
+        pt_fill=df,
+        # ymin=-53, ymax=10
+    )
+    # '''
     
-
-
-    '''
-
     ''' sen
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_morris"
     pst_file = "koki_zon_rw_morris.pst"
     analyzer.plot_sen_morris(handler.read_morris_msn(wd, pst_file))
+    '''
+
+    '''
+    analyzer.single_plot_fdc_added(
+                    pst,
+                    df,
+                    obgnam,
+                    width=6, height=5, dot=True,
+                    size=None, bstc=True,
+                    orgsim=None,
+                    pr_oe=pr_oe
+                    )
     '''
