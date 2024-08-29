@@ -864,8 +864,8 @@ if __name__ == '__main__':
     # pst_name = "koki_zon_rw_morris.pst"
     # # read_morris_msn(wd, pst_name)
     # analyzer.plot_sen_morris(read_morris_msn(wd, pst_name))
-
-    wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\dawhenya_weather"
+    wd = "/Users/seonggyu.park/Documents/projects/tools/swatmf_wf/temp/dawhenya_weather"
+    # wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\dawhenya_weather"
     os.chdir(wd)
     tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
     cropBHU = 10
