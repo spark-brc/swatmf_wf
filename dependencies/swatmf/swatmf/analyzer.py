@@ -1931,3 +1931,112 @@ def single_fdc(df):
     plt.show()
 
 
+def plot_heatunit(df):
+    df['year'] =df.index.year
+    df['date'] = df.index.strftime('%m-%d')
+    uns = df.pivot(index='date', columns='year', values='tmean')
+    print(uns.index)
+    # fig, ax = plt.subplots()
+    uns.iloc[:, :3].plot()
+    plt.show()
+    # ax.plot(df.index, df)
+    # # print(df.index.year.unique())
+    # # print(df.loc['1983'])
+    # plt.show()
+
+
+def plot_violin(wd, df):
+    # Boxplot
+    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
+    f, ax = plt.subplots(figsize=(3,6))
+    month_names = [
+                'tmax','tmin', 'tmean',
+                ]
+    # plot. Set color of marker edge
+    flierprops = dict(
+                    marker='o', 
+                    markerfacecolor='#fc0384', 
+                    markersize=7,
+                    # linestyle='None',
+                    # markeredgecolor='none',
+                    alpha=0.3)
+    # ax.boxplot(data, flierprops=flierprops)
+    r = ax.violinplot(
+        df.values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
+        quantiles=[[0.25, 0.75]]*3,
+        bw_method='silverman'
+        )
+    r['cmeans'].set_color('r')
+    r['cquantiles'].set_color('r')
+    r['cquantiles'].set_linestyle(':')
+    # r['cquantiles'].set_linewidth(3)
+    colors = ['#c40243', "#04b0db", '#038f18', ]
+    for c, pc in zip(colors, r['bodies']):
+        pc.set_facecolor(c)
+    #     pc.set_edgecolor('black')
+        pc.set_alpha(0.4)
+
+    ax.set_xticks([i+1 for i in range(3)])
+    # ax.set_xticklabels(df_m.keys(), rotation=90)
+    ax.set_xticklabels(month_names)
+    ax.tick_params(axis='both', labelsize=12)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    plt.tight_layout()
+    ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
+    plt.savefig(os.path.join(wd, 'viloin_plot.png'), dpi=300, bbox_inches="tight")
+    plt.show()
+
+def plot_violin2(wd, inf, cropBHU, month):
+    # Boxplot
+    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
+    days = [i for i in range(1, 21)]
+    f, axes = plt.subplots(nrows=1, ncols=len(days), figsize=(10,4), sharey=True)
+    x_names = [str(i) for  i in days]
+    # plot. Set color of marker edge
+    flierprops = dict(
+                    marker='o', 
+                    markerfacecolor='#fc0384', 
+                    markersize=7,
+                    # linestyle='None',
+                    # markeredgecolor='none',
+                    alpha=0.3)
+    # ax.boxplot(data, flierprops=flierprops)
+    os.chdir(wd)
+
+    for ax, day in zip(axes, days):
+        df = handler.generate_heatunit(wd, inf, cropBHU, month, day)
+
+        r = ax.violinplot(
+            df.loc[:, "FPHU0"].values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
+            # quantiles=[[0.25, 0.75]]*len(days),
+            quantiles=[[0.25, 0.75]],
+            bw_method='silverman'
+            )
+        r['cmeans'].set_color('r')
+        r['cquantiles'].set_color('r')
+        r['cquantiles'].set_linestyle(':')
+        # r['cquantiles'].set_linewidth(3)
+        # colors = ['#c40243', "#04b0db", '#038f18', ]
+        # for c, pc in zip(colors, r['bodies']):
+        #     pc.set_facecolor(c)
+        # #     pc.set_edgecolor('black')
+        #     pc.set_alpha(0.4)
+
+        ax.set_xticks([1])
+        # ax.set_xticklabels(df_m.keys(), rotation=90)
+        ax.set_xticklabels([str(day)])
+        # ax.set_xticklabels(x_names)
+        ax.tick_params(axis='both', labelsize=8)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(axis='y')
+        
+        # ax.set_xticklabels([str(day)])
+    # ax.spines['bottom'].set_visible(False)
+    # ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
+    # plt.xticks([0])
+    plt.tight_layout()
+    plt.savefig(os.path.join(wd, 'viloin_plottt.png'), dpi=300, bbox_inches="tight")
+    plt.show()

@@ -750,111 +750,30 @@ def exists(path_):
     return False
 
 
-def read_temp(wd, inf, cropBHU):
+def generate_heatunit(wd, inf, cropBHU, month, day):
     df = pd.read_csv(os.path.join(wd, inf), skiprows=1, names=['tmax', 'tmin'], na_values=-999)
     stdate = read_from(os.path.join(wd, inf))[0]
     df.index = pd.date_range(start=stdate, periods=len(df))
     df['tmean'] = (df['tmin'] + df['tmax'])/2
     df["HU"] = df['tmean'] - cropBHU
     df.loc[df['HU'] < 0, 'HU'] = 0
-    df["cumulative_VAL"] = df.groupby(df.index.year)["HU"].cumsum()
-    df.to_csv(os.path.join(wd, 'test.csv'))
-    return df
+    df[f"PHU{cropBHU}"] = df.groupby(df.index.year)["HU"].cumsum()
+    
+    phu0 = df.loc[(df.index.month==month) & (df.index.day==day)] 
+    tphu0 = df.loc[(df.index.month==12) & (df.index.day==31)] 
+
+    dff = pd.DataFrame(index=df.index.year.unique(), columns=["PHU0", "TPHU0"])
+    dff["PHU0"] = phu0.loc[:, "PHU0"].values
+    dff["TPHU0"] = tphu0.loc[:, "PHU0"].values
+    dff["FPHU0"] = dff["PHU0"] / dff["TPHU0"]
+
+    dff.to_csv(os.path.join(wd, 'test.csv'))
+    return dff
 
 
-def plot_violin(wd, df):
-    # Boxplot
-    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
-    f, ax = plt.subplots(figsize=(3,6))
-    month_names = [
-                'tmax','tmin', 'tmean',
-                ]
-    # plot. Set color of marker edge
-    flierprops = dict(
-                    marker='o', 
-                    markerfacecolor='#fc0384', 
-                    markersize=7,
-                    # linestyle='None',
-                    # markeredgecolor='none',
-                    alpha=0.3)
-    # ax.boxplot(data, flierprops=flierprops)
-    r = ax.violinplot(
-        df.values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
-        quantiles=[[0.25, 0.75]]*3,
-        bw_method='silverman'
-        )
-    r['cmeans'].set_color('r')
-    r['cquantiles'].set_color('r')
-    r['cquantiles'].set_linestyle(':')
-    # r['cquantiles'].set_linewidth(3)
-    colors = ['#c40243', "#04b0db", '#038f18', ]
-    for c, pc in zip(colors, r['bodies']):
-        pc.set_facecolor(c)
-    #     pc.set_edgecolor('black')
-        pc.set_alpha(0.4)
+# def combine_fphu(df):
 
-    ax.set_xticks([i+1 for i in range(3)])
-    # ax.set_xticklabels(df_m.keys(), rotation=90)
-    ax.set_xticklabels(month_names)
-    ax.tick_params(axis='both', labelsize=12)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    plt.tight_layout()
-    ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
-    plt.savefig(os.path.join(wd, 'viloin_plot.png'), dpi=300, bbox_inches="tight")
-    plt.show()
 
-def plot_violin2(wd, df):
-    # Boxplot
-    # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
-    f, axes = plt.subplots(nrows=1, ncols=4, figsize=(8,6), sharey=True)
-    month_names = [
-                'tmax','tmin', 'tmean',
-                ]
-    # plot. Set color of marker edge
-    flierprops = dict(
-                    marker='o', 
-                    markerfacecolor='#fc0384', 
-                    markersize=7,
-                    # linestyle='None',
-                    # markeredgecolor='none',
-                    alpha=0.3)
-    # ax.boxplot(data, flierprops=flierprops)
-    os.chdir(wd)
-    tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
-
-    for ax, tmp_f in zip(axes, tmp_files):
-        print(tmp_f)
-        df = read_temp(wd, tmp_f)
-
-        r = ax.violinplot(
-            df.values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
-            quantiles=[[0.25, 0.75]]*3,
-            bw_method='silverman'
-            )
-        r['cmeans'].set_color('r')
-        r['cquantiles'].set_color('r')
-        r['cquantiles'].set_linestyle(':')
-        # r['cquantiles'].set_linewidth(3)
-        colors = ['#c40243', "#04b0db", '#038f18', ]
-        for c, pc in zip(colors, r['bodies']):
-            pc.set_facecolor(c)
-        #     pc.set_edgecolor('black')
-            pc.set_alpha(0.4)
-
-        ax.set_xticks([i+1 for i in range(3)])
-        # ax.set_xticklabels(df_m.keys(), rotation=90)
-        ax.set_xticklabels(month_names)
-        ax.tick_params(axis='both', labelsize=12)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.grid(axis='y')
-    # ax.spines['bottom'].set_visible(False)
-    # ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
-    plt.tight_layout()
-    plt.savefig(os.path.join(wd, 'viloin_plot.png'), dpi=300, bbox_inches="tight")
-    plt.show()
 
 
 
@@ -864,10 +783,19 @@ if __name__ == '__main__':
     # pst_name = "koki_zon_rw_morris.pst"
     # # read_morris_msn(wd, pst_name)
     # analyzer.plot_sen_morris(read_morris_msn(wd, pst_name))
-    wd = "/Users/seonggyu.park/Documents/projects/tools/swatmf_wf/temp/dawhenya_weather"
-    # wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\dawhenya_weather"
+    # wd = "/Users/seonggyu.park/Documents/projects/tools/swatmf_wf/temp/dawhenya_weather"
+    wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\dawhenya_weather"
     os.chdir(wd)
-    tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
-    cropBHU = 10
-    df = read_temp(wd, tmp_files[1], cropBHU)
-    print(df)
+    # tmp_files = [f for f in glob.glob("*.txt") if f[-7:] == "TMP.txt"]
+    # cropBHU = 0
+    # df = generate_heatunit(wd, "AF_430172_TMP.txt", cropBHU, 4, 15)
+    
+ 
+    # # dff = pd.concat([phu0["PHU0"], tphu0["PHU0"]], axis=1, ignore_index=True)
+    # print(df)
+    inf = "AF_430172_TMP.txt"
+    cropBHU = 0
+    # analyzer.plot_violin2(wd, inf, cropBHU, 4)
+    
+    # analyzer.plot_heatunit(df)
+    generate_heatunit(wd, inf, cropBHU, 4, 15)

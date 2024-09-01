@@ -6,6 +6,7 @@ import numpy as np
 # from .. import gcm_analysis
 from tqdm import tqdm
 import datetime
+from swatmf.handler import read_from, file_name, copy_file, write_to
 
 
 
@@ -201,13 +202,37 @@ class Cl(object):
                     for l in abf:
                         fp.write(l+"\n")
 
-    def check_coordinates(self, weatherdb, lats, lons):
+    def check_coordinates(self, weatherdb, lats, lons, outf=None):
+        if outf is None:
+            outf = "coordinates_filtered.csv"
         df = pd.read_csv(weatherdb)
         df.query(
             f'LAT > {lats[0]} & LAT < {lats[1]} &' +
             f'LONG > {lons[0]} & LONG < {lons[1]}', 
             inplace=True)
+        df.to_csv(outf, index=False)
         return df
+    
+    def create_swat_climates(self, infcsv, clin, clout):
+        fc = read_from(infcsv)
+        print(fc)
+
+        for line in fc[1:]:
+            fileName = f'{line.split(",")[1]}.txt'
+            print(fileName)
+            print(len(read_from(os.path.join(clin, f"./pcp/{fileName}"))))
+            copy_file(os.path.join(clin, f"./pcp/{fileName}"), f"{clout}/{file_name(fileName)}")
+        write_to(f"{clout}/pcp.txt", "".join(fc))
+
+        newFC = f"{fc[0].strip()}\n"
+        for line in fc[1:]:
+            fileName = f'{line.split(",")[1]}.txt'
+            newName = f'{line.split(",")[1]}_TMP.txt'
+            newFC += f'{line.split(",")[0]},{file_name(newName, extension=False)},{line.split(",")[2]},{line.split(",")[3]},{line.split(",")[4].strip()}\n'
+            copy_file(os.path.join(clin, f"./tmp/{fileName}"), f"{clout}/{file_name(newName)}")
+        write_to(f"{clout}/tmp.txt", newFC)
+
+    
 
 
 class SwatEdit(object):
@@ -571,16 +596,9 @@ def create_model_in_tpl(wd, excel_file):
 
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
 
-    from swatmf.utils.cli import Cl
-    from swatmf.handler import read_from, file_name, copy_file, write_to
+
 
     wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather"
     infile = "Africa_grids.csv"
@@ -591,33 +609,42 @@ if __name__ == '__main__':
     # lats = [5.6, 5.9]
     # lons = [0.01, 0.1]
 
-    # # botanga
-    # # lats = [6.7,  6.95]
-    # # lons = [-1.9, -1.85]
+    # botanga
+    lats = [9.25,  9.37]
+    lons = [-1.25, -1.17]
+    outf = 'cdbotanga.csv'
+
+    #
     
-    # m01 = Cl(wd)
-    # df_co = m01.check_coordinates(infile, lats, lons)
-    # print(df_co)
+    m01 = Cl(wd)
+    df_co = m01.check_coordinates(infile, lats, lons, outf)
+    print(df_co)
+
+    infcsv = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\cdbotanga.csv"
+    clin = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\AF"
+    clout = "D:\\Projects\\Africa_data\\botanaga_weather"
+
+    m01.create_swat_climates(infcsv, clin, clout)
     # df_co.to_csv('cord_filtered_dawena.csv', index=False)
 
     
-    ffile = "cord_filtered_dawena.csv"
-    outDir = os.path.join(wd, "dawhenya_weather")
-    fc = read_from(os.path.join(wd, ffile))
+    # ffile = "cord_filtered_dawena.csv"
+    # outDir = os.path.join(wd, "dawhenya_weather")
+    # fc = read_from(os.path.join(wd, ffile))
 
-    for line in fc[1:]:
-        fileName = f'{line.split(",")[1]}.txt'
-        print(fileName)
-        print(len(read_from(f"./AF/pcp/{fileName}")))
-        copy_file(f"./AF/pcp/{fileName}", f"{outDir}/{file_name(fileName)}")
-    write_to(f"{outDir}/pcp.txt", "".join(fc))
+    # for line in fc[1:]:
+    #     fileName = f'{line.split(",")[1]}.txt'
+    #     print(fileName)
+    #     print(len(read_from(f"./AF/pcp/{fileName}")))
+    #     copy_file(f"./AF/pcp/{fileName}", f"{outDir}/{file_name(fileName)}")
+    # write_to(f"{outDir}/pcp.txt", "".join(fc))
 
-    newFC = f"{fc[0].strip()}\n"
-    for line in fc[1:]:
-        fileName = f'{line.split(",")[1]}.txt'
-        newName = f'{line.split(",")[1]}_TMP.txt'
-        newFC += f'{line.split(",")[0]},{file_name(newName, extension=False)},{line.split(",")[2]},{line.split(",")[3]},{line.split(",")[4].strip()}\n'
-        copy_file(f"./AF/tmp/{fileName}", f"{outDir}/{file_name(newName)}")
-    write_to(f"{outDir}/tmp.txt", newFC)
+    # newFC = f"{fc[0].strip()}\n"
+    # for line in fc[1:]:
+    #     fileName = f'{line.split(",")[1]}.txt'
+    #     newName = f'{line.split(",")[1]}_TMP.txt'
+    #     newFC += f'{line.split(",")[0]},{file_name(newName, extension=False)},{line.split(",")[2]},{line.split(",")[3]},{line.split(",")[4].strip()}\n'
+    #     copy_file(f"./AF/tmp/{fileName}", f"{outDir}/{file_name(newName)}")
+    # write_to(f"{outDir}/tmp.txt", newFC)
 
 
