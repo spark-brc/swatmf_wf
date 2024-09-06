@@ -1991,8 +1991,8 @@ def plot_violin(wd, df):
 def plot_violin2(wd, inf, cropBHU, month):
     # Boxplot
     # f, ax = plt.subplots(3, 4, figsize=(12,8), sharex=True, sharey=True)
-    days = [i for i in range(1, 21)]
-    f, axes = plt.subplots(nrows=1, ncols=len(days), figsize=(10,4), sharey=True)
+    days = [i for i in range(1, 32)]
+    f, axes = plt.subplots(nrows=1, ncols=len(days), figsize=(12,8), sharey=True)
     x_names = [str(i) for  i in days]
     # plot. Set color of marker edge
     flierprops = dict(
@@ -2009,7 +2009,9 @@ def plot_violin2(wd, inf, cropBHU, month):
         df = handler.generate_heatunit(wd, inf, cropBHU, month, day)
 
         r = ax.violinplot(
-            df.loc[:, "FPHU0"].values,  widths=0.5, showmeans=True, showextrema=True, showmedians=False,
+            df.loc[:, "FPHU0"].values,  
+            widths=(0.5),
+            showmeans=True, showextrema=True, showmedians=False,
             # quantiles=[[0.25, 0.75]]*len(days),
             quantiles=[[0.25, 0.75]],
             bw_method='silverman'
@@ -2038,5 +2040,46 @@ def plot_violin2(wd, inf, cropBHU, month):
     # ax.set_ylabel('CH$_4$ emission $(g\;CH_{4}-C\; m^{-2}\cdot d^{-1})$', fontsize=14)
     # plt.xticks([0])
     plt.tight_layout()
-    plt.savefig(os.path.join(wd, 'viloin_plottt.png'), dpi=300, bbox_inches="tight")
+    lastfolder = os.path.basename(os.path.normpath(wd))
+    plt.savefig(os.path.join(wd, f'HUI_{lastfolder}.png'), dpi=300, bbox_inches="tight")
     plt.show()
+
+
+class Paddy:
+
+    def __init__(self, wd) -> None:
+        os.chdir(wd)
+
+    def plot_paddy_daily(self, df):
+        cmap = plt.get_cmap("tab10")
+        nums = len(df.columns)
+        fig, axes = plt.subplots(nrows=nums, sharex=True, figsize=(9, 11))
+        for i, (col, ax) in enumerate(zip(df.columns, axes)):
+            ax.plot(df.index, df[col], color=cmap(i), label=col)
+            ax.legend(loc="upper left", fontsize=12)
+        
+            ax.tick_params(axis='both', labelsize=12)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_yield(self, df):
+        fig, ax = plt.subplots()
+        ax.plot(df.index, df["yield"], "v-",markerfacecolor="None", label="Simulated, Botanga HRU Model")
+        ax.plot(df.index, df["obd_yield"], "o-", markerfacecolor="None", label="Observed, District Data")
+        ax.tick_params(axis='both', labelsize=12)
+        plt.legend(fontsize=12)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_prep(self, df):
+        fig, ax = plt.subplots()
+        ax.plot(df.index, df["precip"], "v-",markerfacecolor="None", label="Simulated, Botanga HRU Model")
+        ax.plot(df.index, df["northern"], "o-", markerfacecolor="None", label="Observed, Northern Regional Data")
+        ax.tick_params(axis='both', labelsize=12)
+        plt.legend(fontsize=12)
+        plt.tight_layout()
+        plt.show()
+
+    
+
+
