@@ -6,6 +6,7 @@ import pandas as pd
 from swatmf import handler
 from swatmf.utils import mf_configs
 
+'''
 # koki info
 wd = "d:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_git\\koki_zon_rw_ies"
 os.chdir(wd)
@@ -30,6 +31,7 @@ pt_oe = pyemu.ObservationEnsemble.from_csv(
     pst=pst,filename=f'{pst_file[:-4]}.{post_iter_num}.obs.csv'
     )
 
+'''
 
 def koki_ensemble_plot():
     df = analyzer.get_pr_pt_df(pst, pr_oe, pt_oe, bestrel_idx="glm")
@@ -167,7 +169,7 @@ def modi_dtw_avg_obd():
 # def plot_tot():
 if __name__ == '__main__':
     print(os.getcwd())
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m05-base_rel269_02"
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\7th\\koki_ies"
     # sim_obj_file = "koki_zon_rw_ies.0.obs.csv"
     # df, rel_nams = handler.filter_candidates2(wd, pst, sim_obj_file)
     # # for rel in rel_nams:

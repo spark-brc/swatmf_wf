@@ -6,6 +6,88 @@ import numpy as np
 import glob
 
 
+class QGIS(object):
+    def __init__(self, wd):
+        os.chdir(wd)    
+
+    def name_k_zone(self):
+        from qgis.core import (QgsVectorLayer, QgsField, QgsFeatureIterator,
+                                QgsFeatureRequest, QgsProject, QgsLayerTreeLayer)
+                                
+        from qgis.PyQt.QtCore import QVariant
+
+        layer = QgsProject.instance().mapLayersByName("4th")[0]
+        provider = layer.dataProvider()
+        if provider.fields().indexFromName("h_zon_lyr4") == -1:
+            field = QgsField("h_zon_lyr4", QVariant.String)
+            provider.addAttributes([field])
+            layer.updateFields()
+        layer.startEditing()
+        for idx in [185, 186, 188, 197, 198, 199, 201, 202][::-1]:
+            for f in layer.getFeatures():
+                if f[f'HK_A{idx}_L4'] == 1:
+                    f['h_zon_lyr4'] = f'A{idx}'
+                # elif f['HK_A185_L1'] == 1:
+                #     f['h_zon_lyr4'] = 'A185'
+                if f[f'HK_LYR04L4'] == 1:
+                    f['h_zon_lyr4'] = 'zlyr04'
+                layer.updateFeature(f)
+        '''
+        layer.startEditing()
+        for f in layer.getFeatures():
+            if f['KXL1'] == 0.000864:
+                f['h_zone'] = 'HK_sed'
+            elif f['KXL1'] == 0.006912:
+                f['h_zone'] = 'HK_AS01'
+            elif f['KXL1'] == 0.0864:
+                f['h_zone'] = 'HK_AS02'
+            elif f['KXL1'] == 0.273024:
+                f['h_zone'] = 'HK_AS03'
+            elif f['KXL1'] == 0.991872:
+                f['h_zone'] = 'HK_ORG'
+            elif f['KXL1'] == 1.36944:
+                f['h_zone'] = 'HK_AF01'
+            else:
+                f['h_zone'] = 'HK_AF02'
+        #    print (f.id())
+        #    layer.changeAttributeValue(f.id(), attrIdx, i+1)
+        '''
+        layer.commitChanges()
+        print('done')
+
+    def change_vals(self):
+        from qgis.core import (QgsVectorLayer, QgsField, QgsFeatureIterator,
+                                QgsFeatureRequest, QgsProject, QgsLayerTreeLayer)
+                                
+        from qgis.PyQt.QtCore import QVariant
+
+        mons = ["mar", "jun", "aug", "sep", "dec"]
+        
+        for m in mons:
+            indexnam = f"dtw_{m}_f"
+            basenam = f"dtw_{m}"
+
+            layer = QgsProject.instance().mapLayersByName("dtw")[0]
+            provider = layer.dataProvider()
+            if provider.fields().indexFromName(indexnam) == -1:
+                field = QgsField(indexnam, QVariant.Double, 'double', 20, 5)
+                provider.addAttributes([field])
+                layer.updateFields()
+            layer.startEditing()
+            for f in layer.getFeatures():
+                if f[basenam] <= -1:
+                    f[indexnam] = 0
+                else:
+                    f[indexnam] = f[basenam]
+                layer.updateFeature(f)
+            layer.commitChanges()
+            print(' >>> done')
+        print(" > complete")
+
+
+
+
+
 def rename_files(src_dir, dst_dir):
     # find all files
     src_list = os.listdir(src_dir)
@@ -78,6 +160,11 @@ class MapSPAM(object):
 
     def get_uniq_grid_ids(self):
         infs = [f for f in glob.glob("*.csv")]    
+
+
+
+
+
 
 
 if __name__ == '__main__':

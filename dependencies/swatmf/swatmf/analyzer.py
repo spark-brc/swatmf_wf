@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
 from swatmf import handler, objfns
 import pyemu
+from swatmf.handler import Paddy
 
 
 def get_all_scenario_lists(wd):
@@ -763,9 +764,15 @@ def dtw_1to1_plot(df):
 
 def dtw_1to1_plot_(df):
     groups = df.groupby('grid_id')
-    fig, ax = plt.subplots(figsize=(7,6))
+    fig, ax = plt.subplots(
+                    figsize=(6,5)
+                    )
+
     # ax.axis('off')
     for name, group in groups:
+        print(group)
+        layer = (group["layer"].values[0])
+        date = (group["date"].values[0])
         ax.scatter(
                 group.sim, group.obd,
                 # facecolors=df.grid_id,
@@ -775,7 +782,10 @@ def dtw_1to1_plot_(df):
                 alpha=0.3,
                 zorder=10,
                 marker='o',
-                label=name)
+                label=(
+                    f"{name} in layer{layer} on {date}"
+                    )
+                )
 
     x_cal = df.sim.tolist()
     y_cal = df.obd.tolist()
@@ -784,15 +794,16 @@ def dtw_1to1_plot_(df):
     corrl_matrix_cal = np.corrcoef(x_cal, y_cal)
     corrl_xy_cal = corrl_matrix_cal[0,1]
     r_squared_cal = corrl_xy_cal**2
-    pbias_cal = evaluator(pbias, df.sim.to_numpy(), df.obd.to_numpy())
+    rmse = objfns.rmse(y_cal, x_cal)
+    # pbias_cal = evaluator(pbias, df.sim.to_numpy(), df.obd.to_numpy())
     m_cal, b_cal = np.polyfit(x_cal, y_cal, 1)
     ax.plot(np.array(x_cal), (m_cal*np.array(x_cal)) + b_cal, 'green', alpha=1)
-    ax.set_xlabel('Simulated Groundwater Head $(m)$', fontsize=16)
-    ax.set_ylabel('Observed Groundwater Head $(m)$', fontsize=16)
+    ax.set_xlabel('Simulated Groundwater Head $(m)$', fontsize=14)
+    ax.set_ylabel('Observed Groundwater Head $(m)$', fontsize=14)
     ax.text(
             0.05, 0.9,
-            '$R^2$: {:.3f} | PBIAS: {:.3f}'.format(r_squared_cal, pbias_cal[0]),
-            fontsize=18,
+            '$R^2$: {:.2f} | RMSE: {:.2f}'.format(r_squared_cal, rmse),
+            fontsize=14,
             horizontalalignment='left',
             bbox=dict(facecolor='lightgreen'),
             # bbox=dict(facecolor='bisque'),
@@ -800,13 +811,22 @@ def dtw_1to1_plot_(df):
             transform=ax.transAxes
             )
 
-    ax.tick_params(axis='both', labelsize=14)
-    # ax.set_xlim(-35, 0)
-    # ax.set_ylim(-35, 0)
+    ax.tick_params(axis='both', labelsize=12)
+    # ax.set_xlim(-40, 0)
+    # ax.set_ylim(-15, 0)
     # plt.legend(fontsize=16)
 
     # fig.tight_layout()
-    ax.legend(fontsize=18, loc='lower right', bbox_to_anchor=(1.35, 0))
+    ax.legend(
+        fontsize=14, 
+        # loc=5, 
+        handletextpad=0.1,
+        # labelspacing=1.2, 
+
+        bbox_to_anchor=(1.02, 0.9),
+        # transform=ax.transAxes
+        )
+    # plt.tight_layout()
     plt.savefig('gr_gw.jpg', dpi=300, bbox_inches="tight")
     plt.show()
 
@@ -1295,7 +1315,7 @@ def format_axes(fig):
 
 
 # std plot
-def std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
+def output_std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
     # fig, axes = plt.subplots(
     #     nrows=4, figsize=(14, 7), sharex=True,
     #     gridspec_kw={
@@ -1500,9 +1520,9 @@ def plot_sen_morris(df):
     ax.scatter(rivcd_df.sen_mean_abs,rivcd_df.sen_std_dev,marker=">",s=80,c="m", alpha=0.5, label="rivcd")
 
     # tmp_df = tmp_df.iloc[:8]
-    for x,y,n in zip(df.sen_mean_abs,df.sen_std_dev,df.index):
+    # for x,y,n in zip(df.sen_mean_abs,df.sen_std_dev,df.index):
         # if x > 1e11:
-        ax.text(x+0.5,y,n, fontsize=10)
+        # ax.text(x+0.5,y,n, fontsize=10)
     # mx = max(ax.get_xlim()[1],ax.get_ylim()[1])
     # mn = min(ax.get_xlim()[0],ax.get_ylim()[0])
     # ax.plot([mn,mx],[mn,mx],"k--", alpha=0.3)
@@ -2045,11 +2065,8 @@ def plot_violin2(wd, inf, cropBHU, month):
     plt.show()
 
 
-class Paddy:
-
-    def __init__(self, wd) -> None:
-        os.chdir(wd)
-
+class Paddy(Paddy):
+    print(os.getcwd())
     def plot_paddy_daily(self, df):
         cmap = plt.get_cmap("tab10")
         nums = len(df.columns)
@@ -2073,12 +2090,14 @@ class Paddy:
 
     def plot_prep(self, df):
         fig, ax = plt.subplots()
-        ax.plot(df.index, df["precip"], "v-",markerfacecolor="None", label="Simulated, Botanga HRU Model")
+        ax.plot(df.index, df["precip"], "v-",markerfacecolor="None", label="CHIRPS, Botanga HRU Model")
         ax.plot(df.index, df["northern"], "o-", markerfacecolor="None", label="Observed, Northern Regional Data")
         ax.tick_params(axis='both', labelsize=12)
         plt.legend(fontsize=12)
         plt.tight_layout()
         plt.show()
+
+    
 
     
 

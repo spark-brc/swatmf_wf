@@ -118,7 +118,7 @@ def temp_plot(stf_obd_df, obd_col, wb_df, viz_ts, gw_df, grid_id, gw_obd_df, gw_
     analyzer.plot_gw_sim_obd(ax2[0], gw_df, "sim_g1203lyr3",gw_obd_df, "obd1203lyr3")
     analyzer.plot_gw_sim_obd(ax2[1], gw_df, "sim_g1205lyr3", gw_obd_df, "obd1205lyr3")
     # '''
-    analyzer.std_plot(ax3, wb_df, viz_ts)
+    analyzer.output_std_plot(ax3, wb_df, viz_ts)
     plt.show()
 
 

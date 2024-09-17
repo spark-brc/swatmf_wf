@@ -10,7 +10,7 @@ from swatmf.utils import mf_configs
 
 if __name__ == '__main__':
     # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m05-base_manual01"
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\koksilah_swatmf\\m05-base_rel269"
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\7th\\koki_ies"
     m1 = handler.SWATMFout(wd)
     
     '''
@@ -46,11 +46,32 @@ if __name__ == '__main__':
     #     obd = gw_obd.loc[:, o]
     #     prep = m1.temp_sup(p)
     #     analyzer.dtw_plot(sdf, obd, prep)
-    
-    static_dtw = pd.read_csv('dtw_sim_static.txt', comment="#", sep=r'\s+')
-    static_dtw = static_dtw.loc[static_dtw['sim'] < 0]
-    print(static_dtw)
-    static_dtw = static_dtw.drop(5)
-    print(static_dtw)
-    analyzer.dtw_1to1_plot_(static_dtw)
+
+
+    # # static waterlevels
+    # static_dtw = pd.read_csv('dtw_sim_static.txt', comment="#", sep=r'\s+')
+    # static_dtw = static_dtw.loc[static_dtw['sim'] < 0]
+    # print(static_dtw)
+    # static_dtw = static_dtw.drop(13)
+    # static_dtw = static_dtw.drop(4)
+    # print(static_dtw)
+    # analyzer.dtw_1to1_plot_(static_dtw)
+
+
+    # outputstd
+    # fig = plt.figure(figsize=(10,10))
+    wb_df = m1.get_std_data()
+    viz_ts = "month"
+    fig, ax = plt.subplots()
+    subplots = fig.subfigures(
+                            4, 1, height_ratios=[0.2, 0.2, 0.2, 0.4],
+                        #   hspace=-0.05
+                        )
+    ax3 = subplots[3].subplots(4,1, sharex=True, height_ratios=[0.2, 0.2, 0.4, 0.2])
+    analyzer.output_std_plot(ax3, wb_df, viz_ts)
+    plt.show()
+
+
+
+
 

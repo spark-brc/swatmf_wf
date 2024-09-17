@@ -170,6 +170,7 @@ def modi_dtw_avg_obd():
 
 # def plot_tot():
 if __name__ == '__main__':
+    '''
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\7th\\koki_ies"
     pst_file = "koki_zon_rw_uf_ies.pst"
     iter_idx = 14
@@ -197,13 +198,9 @@ if __name__ == '__main__':
         )
     koki_ensemble_plot2()
     '''
-    
 
-
-    '''
-
-    ''' sen
+    # ''' #sen
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_morris"
     pst_file = "koki_zon_rw_morris.pst"
     analyzer.plot_sen_morris(handler.read_morris_msn(wd, pst_file))
-    '''
+    # '''

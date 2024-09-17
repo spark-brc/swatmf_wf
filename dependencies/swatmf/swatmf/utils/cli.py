@@ -597,9 +597,6 @@ def create_model_in_tpl(wd, excel_file):
 
 
 if __name__ == '__main__':
-
-
-
     wd = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather"
     infile = "Africa_grids.csv"
 
@@ -614,8 +611,6 @@ if __name__ == '__main__':
     lons = [-1.25, -1.17]
     outf = 'cdbotanga.csv'
 
-    #
-    
     m01 = Cl(wd)
     df_co = m01.check_coordinates(infile, lats, lons, outf)
     print(df_co)

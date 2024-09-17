@@ -769,7 +769,7 @@ def generate_heatunit(wd, inf, cropBHU, month, day):
 
 
 
-class Paddy:
+class Paddy(object):
     def __init__(self, wd) -> None:
         os.chdir(wd)
         self.stdate, self.enddate, self.stdate_warmup = self.define_sim_period()
@@ -883,12 +883,15 @@ if __name__ == '__main__':
     from swatmf import analyzer
     wd =  "d:\\Projects\\Watersheds\\Ghana\\Analysis\\botanga\\prj01\\Scenarios\\Default\\TxtInOut_rice_f"
     m1 = Paddy(wd)
-    # df = m1.read_paddy_daily()
-    # cols = ["Precip", "Irrig", "Seep", "ET", "PET", 'WeirH', 'Wtrdep', 'WeirQ','LAI']
-    # df = df.loc[:,  cols]
-    # df = df["1/1/2018":"12/31/2020"]
-    # print(df)
-    # analyzer.Paddy(wd).plot_paddy_daily(df)
+
+    '''
+    '''
+    df = m1.read_paddy_daily()
+    cols = ["Precip", "Irrig", "Seep", "ET", "PET", 'WeirH', 'Wtrdep', 'WeirQ','LAI']
+    df = df.loc[:,  cols]
+    df = df["1/1/2019":"12/31/2020"]
+    print(df)
+    analyzer.Paddy(wd).plot_paddy_daily(df)
 
     dfs = m1.read_lsunit_wb_yr()
     dfs = dfs.loc[:,  "precip"]
@@ -897,4 +900,16 @@ if __name__ == '__main__':
 
     dfs = pd.concat([dfs, dfo], axis=1)
     analyzer.Paddy(wd).plot_prep(dfs)
+    # print(analyzer.Paddy(wd).stdate)
+
+    dfy = m1.read_basin_pw_day()
+    dfy = dfy.loc[:,  "yield"].resample('YE').sum() * 0.001
+    dfyo = m1.read_yield_obd()
+    dfy = pd.concat([dfy, dfyo], axis=1)
+
+    print(dfy)
+    analyzer.Paddy(wd).plot_yield(dfy)
+
+
+
     

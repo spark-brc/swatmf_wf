@@ -165,6 +165,7 @@ def modi_dtw_avg_obd():
 
 # def plot_tot():
 if __name__ == '__main__':
+    '''
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\7th\\koki_ies"
     pst_file = "koki_zon_rw_uf_ies.pst"
     iter_idx = 14
@@ -182,7 +183,7 @@ if __name__ == '__main__':
     # print(df2)
     # analyzer.create_rels_objs(wd, pst_file, 7)
     # print(pt_oe.loc[141])
-    '''
+
     print(pt_oe.index.values)
 
     for i in pt_oe.index.values:
@@ -196,7 +197,7 @@ if __name__ == '__main__':
             df, 
             bstc=True
             )
-    '''
+
     obgnams= [
         'dtw_static', 'obd1203lyr3', 'obd1205lyr3', 'obd249lyr2', 'obd249lyr3',
         'sub01', 'sub03', 'sub68']
@@ -209,7 +210,7 @@ if __name__ == '__main__':
     #     print(obgnam)
     analyzer.single_plot_fdc_added(pst, df, obgnams[6], width=6, height=5, size=20, bstc=True,pr_oe=pr_oe)
 
-    # '''
+
 
 
     obgnam = obgnams[1]
@@ -279,13 +280,14 @@ if __name__ == '__main__':
         pt_fill=df,
         # ymin=-53, ymax=10
     )
-    # '''
-    
-    ''' sen
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\koki_5th_morris"
-    pst_file = "koki_zon_rw_morris.pst"
-    analyzer.plot_sen_morris(handler.read_morris_msn(wd, pst_file))
     '''
+    
+    # ''' sen
+    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\calibration\\5th\\koki_5th_morris"
+    pst_file = "koki_zon_rw_morris.pst"
+    print(os.getcwd())
+    analyzer.plot_sen_morris(handler.read_morris_msn(wd, pst_file))
+    # '''
 
     '''
     analyzer.single_plot_fdc_added(
