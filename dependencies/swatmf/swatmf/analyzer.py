@@ -13,7 +13,7 @@ from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
 from swatmf import handler, objfns
 import pyemu
-from swatmf.handler import Paddy
+# from swatmf.handler import Paddy
 
 
 def get_all_scenario_lists(wd):
@@ -2065,6 +2065,7 @@ def plot_violin2(wd, inf, cropBHU, month):
     plt.show()
 
 
+'''
 class Paddy(Paddy):
     print(os.getcwd())
     def plot_paddy_daily(self, df):
@@ -2098,7 +2099,7 @@ class Paddy(Paddy):
         plt.show()
 
     
-
+'''
     
 
 

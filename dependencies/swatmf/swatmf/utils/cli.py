@@ -607,39 +607,21 @@ if __name__ == '__main__':
     # lons = [0.01, 0.1]
 
     # botanga
-    lats = [9.25,  9.37]
-    lons = [-1.25, -1.17]
-    outf = 'cdbotanga.csv'
+    lats = [5.55,  6.20]
+    lons = [-0.35, 0.35]
+    outf = 'cddwn.csv'
 
     m01 = Cl(wd)
-    df_co = m01.check_coordinates(infile, lats, lons, outf)
-    print(df_co)
+    # df_co = m01.check_coordinates(infile, lats, lons, outf)
+    # print(df_co)
 
-    infcsv = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\cdbotanga.csv"
+
+
+    infcsv = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\cddwn.csv"
     clin = "D:\\Projects\\Africa_data\\AF_CHIRPS_weather\\AF"
-    clout = "D:\\Projects\\Africa_data\\botanaga_weather"
+    clout = "D:\\Projects\\Africa_data\\dwn_weather"
 
     m01.create_swat_climates(infcsv, clin, clout)
-    # df_co.to_csv('cord_filtered_dawena.csv', index=False)
 
-    
-    # ffile = "cord_filtered_dawena.csv"
-    # outDir = os.path.join(wd, "dawhenya_weather")
-    # fc = read_from(os.path.join(wd, ffile))
-
-    # for line in fc[1:]:
-    #     fileName = f'{line.split(",")[1]}.txt'
-    #     print(fileName)
-    #     print(len(read_from(f"./AF/pcp/{fileName}")))
-    #     copy_file(f"./AF/pcp/{fileName}", f"{outDir}/{file_name(fileName)}")
-    # write_to(f"{outDir}/pcp.txt", "".join(fc))
-
-    # newFC = f"{fc[0].strip()}\n"
-    # for line in fc[1:]:
-    #     fileName = f'{line.split(",")[1]}.txt'
-    #     newName = f'{line.split(",")[1]}_TMP.txt'
-    #     newFC += f'{line.split(",")[0]},{file_name(newName, extension=False)},{line.split(",")[2]},{line.split(",")[3]},{line.split(",")[4].strip()}\n'
-    #     copy_file(f"./AF/tmp/{fileName}", f"{outDir}/{file_name(newName)}")
-    # write_to(f"{outDir}/tmp.txt", newFC)
 
 
