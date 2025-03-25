@@ -1,5 +1,4 @@
-""" PEST support utilities: 12/4/2019 created by Seonggyu Park
-"""
+
 
 # from lib2to3.pgen2.token import NEWLINE
 import pandas as pd

@@ -254,9 +254,6 @@ def modify_sol(back_dir, output_dir):
                 nums2.append(nm)
             else:
                 nums2.append(nm)
-
-
-
         part1 = ''.join(['{:{}}'.format(float(x), txtformat) for x in nums2])
         new_line = '{part1}:{part2}\n'.format(part1=parts[0], part2=part1)
         data[n_line] = new_line
