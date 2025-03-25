@@ -358,8 +358,10 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                 param_names = list(param.keys())
                 for param_name in param_names:
                     c = 0
-                    if var_list:
-                        ind = [i for i, x in enumerate(var_list) if param_name in x][0]
+                    #BUG: this is not working properly for SOIL_Z in SOIL_ZMX
+                    if var_list: 
+                        ind = [i for i, x in enumerate(var_list) if param_name == x][0]
+                        # print(var_list[ind])
                         c = n_line[ind] - 1
                         num_format = txtformat[ind]
                     else:
@@ -635,27 +637,17 @@ def is_int(s):
 
 # def plot_tot():
 if __name__ == '__main__':
-    # wd = "/Users/seonggyu.park/Documents/projects/kokshila/swatmf_results"
-    model_dir = "/Users/seonggyu.park/Documents/projects/tools/test/Honeyoy_Model_manual"
-    model_dir = "D:\\tmp\\swatmf_dir"
+
+    model_dir = "D:/Projects/temp_qswatmod/opt/main_opt"
     m1 = SwatEdit(model_dir)
-    subbasins_filename = 'D:\\Projects\\Tools\\swat-pytools\\resources\\csv_files\\subbasins.csv'
-    subbasins = [i for i in range(1, 198)]
-
-    # Step 2: Parameters to change
-
-
-
-    # pars = m1.read_new_parms()
-    # print(pars)
-
     new_parms = m1.read_new_parms()
-    # print(new_parms)
-
-
+    subbasins = m1.read_subs()
+    # print(subbasins)
+    
     m1.param = [new_parms]
     m1.subbasins = [subbasins]
     m1.update_swat_parms()
+
     # # swat_model.run_swat()
 
 
