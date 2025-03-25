@@ -15,6 +15,7 @@ flopy.egg-info
 pyemu.egg-info
 build
 dist
+temp
 .trash/
 .DS_Store
 
