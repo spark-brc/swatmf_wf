@@ -9,6 +9,7 @@ import pandas as pd
 import sys
 import datetime as dt
 from tqdm import tqdm
+import pyemu
 
 
 class SwatEdit:
@@ -358,8 +359,9 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                 param_names = list(param.keys())
                 for param_name in param_names:
                     c = 0
-                    #BUG: this is not working properly for SOIL_Z in SOIL_ZMX
                     if var_list: 
+                        #BUG: this is not working properly for SOIL_Z in SOIL_ZMX
+                        # ind = [i for i, x in enumerate(var_list) if param_name in x][0]
                         ind = [i for i, x in enumerate(var_list) if param_name == x][0]
                         # print(var_list[ind])
                         c = n_line[ind] - 1
@@ -638,8 +640,11 @@ def is_int(s):
 # def plot_tot():
 if __name__ == '__main__':
 
-    model_dir = "D:/Projects/temp_qswatmod/opt/main_opt"
+    model_dir = "D:/Projects/temp_qswatmod/t02/SWAT-MODFLOW"
     m1 = SwatEdit(model_dir)
+
+    # m1.create_swat_pars_cal()
+
     new_parms = m1.read_new_parms()
     subbasins = m1.read_subs()
     # print(subbasins)
@@ -647,8 +652,7 @@ if __name__ == '__main__':
     m1.param = [new_parms]
     m1.subbasins = [subbasins]
     m1.update_swat_parms()
-
-    # # swat_model.run_swat()
+    pyemu.os_utils.run('swatmf_rel230922.exe', cwd='.')
 
 
 
