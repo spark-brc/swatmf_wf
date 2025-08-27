@@ -64,7 +64,7 @@ def extract_baseflow_results(subs, sim_start, cal_start, cal_end):
 
 
 
-def update_par_run(wd):
+def update_swatpar(wd):
     os.chdir(wd)
     swatmf_con = pd.read_csv(
         'swatmf.con', sep='\t', names=['names', 'vals'], index_col=0, comment="#"
@@ -76,8 +76,7 @@ def update_par_run(wd):
     if swatmf_con.loc['riv_parm', 'vals'] != 'n':
         rivmf = mf_configs.mfEdit(wd)
         mf_configs.write_new_riv()
-    # execute SWAT-MODFLOW
-    execute_swatmf(wd)
+
 
 
 def extract_results(wd):
@@ -188,8 +187,9 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
     ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax0.tick_params(axis='both', labelsize=8)
     analyzer.plot_stf_sim_obd(ax0, stf_sim_obd, stf_obd)
-    analyzer.plot_gw_sim_obd(ax1, gw_df, "sim_g2801lyr1", gw_obd, "gid2801")
+    analyzer.plot_gw_sim_obd(ax1, gw_df, "sim_g14294lyr1", gw_obd, "dtw14294")
     analyzer.output_std_plot(ax3, wb_df, viz_ts)
+    plt.suptitle("max", ha='left', va='top')
     plt.show()
 
 
@@ -198,13 +198,14 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Kangwei\\HNU_git\\calibration\\main_opt _max"
-    os.chdir(wd)
-    # update_par_run(wd)
-    # extract_results(wd)
-    # plot
-    plot_temp_hjc(wd, 1, "sub001", stf_obd_file="stf_day.obd.csv")
+    wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
+    # wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
 
+    update_swatpar(wd_ub)
+    execute_swatmf(wd_ub)
+    extract_results(wd_ub)
+    # plot
+    plot_temp_hjc(wd_ub, 1, "sub001", stf_obd_file="stf_day.obd.csv")
 
 
 

@@ -162,7 +162,7 @@ def plot_temp(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="month
     ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax0.tick_params(axis='both', labelsize=8)
     analyzer.plot_stf_sim_obd(ax0, stf_sim_obd, stf_obd)
-    analyzer.plot_gw_sim_obd(ax1[0], gw_df, "sim_g2801lyr1", gw_obd, "gid2801")
+    # analyzer.plot_gw_sim_obd(ax1[0], gw_df, "sim_g2801lyr1", gw_obd, "gid2801")
     analyzer.output_std_plot(ax3, wb_df, viz_ts)
     plt.show()
 
@@ -188,7 +188,7 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
     ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
     ax0.tick_params(axis='both', labelsize=8)
     analyzer.plot_stf_sim_obd(ax0, stf_sim_obd, stf_obd)
-    analyzer.plot_gw_sim_obd(ax1, gw_df, "sim_g2801lyr1", gw_obd, "gid2801")
+    analyzer.plot_gw_sim_obd(ax1, gw_df, 'sim_g14294lyr1', gw_obd, "dtw14294")
     analyzer.output_std_plot(ax3, wb_df, viz_ts)
     plt.show()
 
@@ -198,12 +198,14 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd = "D:\\Projects\\Watersheds\\Kangwei\\HNU_git\\calibration\\main_opt"
-    os.chdir(wd)
-    update_par_run(wd)
-    extract_results(wd)
+    # wd = "D:\\Projects\\Watersheds\\Kangwei\\HNU_git\\calibration\\main_opt"
+    wd_lb = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_lb"
+    wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
+    # os.chdir(wd)
+    update_par_run(wd_lb)
+    extract_results(wd_lb)
     # plot
-    plot_temp_hjc(wd, 1, "sub001", stf_obd_file="stf_day.obd.csv")
+    plot_temp_hjc(wd_lb, 1, "sub001", stf_obd_file="stf_day.obd.csv")
 
 
 
