@@ -198,7 +198,7 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
 
 # def plot_tot():
 if __name__ == '__main__':
-    wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
+    wd_ub = "C:\\Users\\spark\\Documents\\Projects\\Watersheds\\kangwei\\prac2\\sw\\SWAT-MODFLOW_ub\\"
     # wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
 
     update_swatpar(wd_ub)

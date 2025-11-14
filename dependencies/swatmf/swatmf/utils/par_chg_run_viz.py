@@ -79,6 +79,20 @@ def update_par_run(wd):
     # execute SWAT-MODFLOW
     execute_swatmf(wd)
 
+def update_swatpar(wd):
+    os.chdir(wd)
+    swatmf_con = pd.read_csv(
+        'swatmf.con', sep='\t', names=['names', 'vals'], index_col=0, comment="#"
+        )
+    # update SWAT parameters
+    update_swat_pars(wd)
+
+    # modifying river pars
+    if swatmf_con.loc['riv_parm', 'vals'] != 'n':
+        rivmf = mf_configs.mfEdit(wd)
+        mf_configs.write_new_riv()
+
+
 
 def extract_results(wd):
     os.chdir(wd)
@@ -198,14 +212,15 @@ def plot_temp_hjc(wd, subnum, stf_obd, stf_obd_file="stf_day.obd.csv", viz_ts="m
 
 # def plot_tot():
 if __name__ == '__main__':
-    # wd = "D:\\Projects\\Watersheds\\Kangwei\\HNU_git\\calibration\\main_opt"
-    wd_lb = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_lb"
-    wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
+    wd = "C:\\Users\\spark\\Documents\\Projects\\Watersheds\\kangwei\\hjc20251025\\SWAT-MODFLOW"
+    # wd_lb = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_lb"
+    # wd_ub = "D:\\Projects\\Watersheds\\Kangwei\\prac2\\sw\\SWAT-MODFLOW_ub"
     # os.chdir(wd)
-    update_par_run(wd_lb)
-    extract_results(wd_lb)
+    # update_swatpar(wd)
+    # update_par_run(wd)
+    extract_results(wd)
     # plot
-    plot_temp_hjc(wd_lb, 1, "sub001", stf_obd_file="stf_day.obd.csv")
+    plot_temp_hjc(wd, 1, "sub001", stf_obd_file="stf_day.obd.csv")
 
 
 

@@ -670,6 +670,51 @@ def model_in_to_template_file(tpl_file=None):
                                                         justify="left"))
     return mod_df
 
+def swat_pars_to_template_file(tpl_file=None):
+    """write a template file for a SWAT parameter value file (swat_pars.cal).
+
+    Args:
+        model_in_file (`str`): the path and name of the existing swat_pars.cal file
+        tpl_file (`str`, optional):  template file to write. If None, use
+            `swat_pars.cal_file` +".tpl". Default is None
+    Note:
+        Uses names in the first column in the pval file as par names.
+
+    Example:
+        pest_utils.model_in_to_template_file('path')
+
+    Returns:
+        **pandas.DataFrame**: a dataFrame with template file information
+    """
+    model_in_file = 'swat_pars.cal'
+    if tpl_file is None:
+        tpl_file = model_in_file + ".tpl"
+    df = pd.read_csv(
+                        model_in_file,
+                        sep='\s+',
+                        # header=True,
+                        # names=["parnam", "parval1"],
+                        comment='#')
+    df.index = df.parnam
+    df["chg_val"] = df.parnam.apply(lambda x: " ~   {0:15s}   ~".format(x))
+
+    SFMT_SHORT = lambda x: "{0:<10s} ".format(str(x))
+    SFMT_LONG = lambda x: "{0:<20s} ".format(str(x))
+    formatters = [SFMT_LONG] + [SFMT_SHORT]*2 + [SFMT_LONG] + [SFMT_SHORT]*2 
+
+    with open("swat_pars.cal.tpl", 'w') as tplf:
+        tplf.write("ptf ~\n")
+        tplf.write("# this is test...\n")
+        tplf.write(
+            df.loc[:, ["parnam", "obj_type", "chg_type", "chg_val", "lb", "ub"
+                        ]].to_string(
+                                    col_space=2,
+                                    formatters=formatters,
+                                    index=False,
+                                    header=True,
+                                    justify="left"))
+    return df
+
 
 def riv_par_to_template_file(riv_par_file, tpl_file=None):
     """write a template file for a SWAT parameter value file (model.in).
@@ -988,6 +1033,8 @@ if __name__ == '__main__':
     base_par = "gumu_pp_rw.30.par"
     update_pars(pst_file, wd, iter_num, base_par=base_par)
     '''
+    
+    '''
     wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\afterservice\\Re-calibration"
     obs_file = "koki_zon_rw_ies.obs_data.csv"
     # obgnme = "sub03"
@@ -995,5 +1042,8 @@ if __name__ == '__main__':
     # suffix = "base"
     # add_obs_group(wd, obs_file, obgnme, threshold, suffix)
     adjust_weight2(wd, obs_file, "sub03", 50)
-
+    '''
+    wd = "c:\\Users\\spark\\Documents\\Projects\\Watersheds\\kangwei\\optimization\\main_opt"
+    os.chdir(wd)
+    swat_pars_to_template_file()
 
