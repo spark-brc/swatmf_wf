@@ -1004,7 +1004,7 @@ def setup_hds_obs(
             If skip can also be a np.ndarry with dimensions equal to the model.
             Observations are set up only for cells with Non-zero values in the array.
             If not np.ndarray or np.scalar(skip), then skip will be treated as a lambda function that
-            returns np.NaN if the value should be skipped.
+            returns np.nan if the value should be skipped.
         prefix (`str`): the prefix to use for the observation names. default is "hds".
         text (`str`): the text tag the flopy HeadFile instance.  Default is "head"
         precison (`str`): the precision string for the flopy HeadFile instance.  Default is "single"
@@ -1089,7 +1089,7 @@ def setup_hds_obs(
     if skip is not None:
         for col in data_cols:
             if np.isscalar(skip):
-                df.loc[df.loc[:, col] == skip, col] = np.NaN
+                df.loc[df.loc[:, col] == skip, col] = np.nan
             elif isinstance(skip, np.ndarray):
                 assert (
                     skip.ndim >= 2
@@ -1122,7 +1122,7 @@ def setup_hds_obs(
                         == 0
                     ),
                     col,
-                ] = np.NaN
+                ] = np.nan
             else:
                 df.loc[:, col] = df.loc[:, col].apply(skip)
 
@@ -1242,7 +1242,7 @@ def apply_hds_obs(hds_file, inact_abs_val=1.0e20, precision="single", text="head
     else:
         hds = flopy.utils.HeadFile(hds_file, precision=precision, text=text)
     kpers = df.kper.unique()
-    df.loc[:, "obsval"] = np.NaN
+    df.loc[:, "obsval"] = np.nan
     for kper in kpers:
         kstp = last_kstp_from_kper(hds, kper)
         data = hds.get_data(kstpkper=(kstp, kper))
@@ -2749,10 +2749,8 @@ def write_hfb_zone_multipliers_template(m):
     with open(tpl_file, "w", newline="") as ofp:
         ofp.write("ptf ~\n")
         [ofp.write("{0}\n".format(line.strip())) for line in header]
-        ofp.flush()
-        hfb_in[["lay", "irow1", "icol1", "irow2", "icol2", "tpl"]].to_csv(
-            ofp, sep=" ", quotechar=" ", header=None, index=None, mode="a"
-        )
+        hfb_in[["lay", "irow1", "icol1", "irow2", "icol2", "tpl"]].apply(
+            lambda x: ofp.write(' '.join(x.astype(str)) + '\n'), axis=1)
 
     # make a lookup for lining up the necessary files to
     # perform multiplication with the helpers.apply_hfb_pars() function

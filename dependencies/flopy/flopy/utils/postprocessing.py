@@ -23,17 +23,20 @@ def get_transmissivities(
     ----------
     heads : 2D array OR 3D array
         numpy array of shape nlay by n locations (2D) OR complete heads array
-        of the model for one time (3D)
-    m : flopy.modflow.Modflow object
-        Must have dis and lpf or upw packages.
+        with the correct shape for structured grids (nlay, nrow, ncol) or for
+        vertex grids (nlay, ncpl).
+    m : flopy.modflow.Modflow or flopy.mf6.ModflowGwf object
+        Must have dis and lpf, upw, or npf packages.
     r : 1D array-like of ints, of length n locations
-        row indices (optional; alternately specify x, y)
+        row indices (optional; alternately specify x, y).
+        Only valid for structured grids.
     c : 1D array-like of ints, of length n locations
-        column indices (optional; alternately specify x, y)
+        column indices (optional; alternately specify x, y).
+        Only valid for structured grids.
     x : 1D array-like of floats, of length n locations
-        x locations in real world coordinates (optional)
+        x locations in real world coordinates (optional).
     y : 1D array-like of floats, of length n locations
-        y locations in real world coordinates (optional)
+        y locations in real world coordinates (optional).
     sctop : 1D array-like of floats, of length n locations
         open interval tops (optional; default is model top)
     scbot : 1D array-like of floats, of length n locations
@@ -46,41 +49,81 @@ def get_transmissivities(
     T : 2D array of same shape as heads (nlay x n locations)
         Transmissivities in each layer at each location
 
-    """
-    if r is not None and c is not None:
-        pass
-    elif x is not None and y is not None:
-        # get row, col for observation locations
-        r, c = m.modelgrid.intersect(x, y)
-    else:
-        raise ValueError("Must specify row, column or x, y locations.")
+    Notes
+    -----
+    For structured grids, locations can be specified with either:
+    - r, c (row, column indices)
+    - x, y (real world coordinates)
 
-    # get k-values and botms at those locations
+    For vertex grids only x, y coordinates are supported.
+
+    Examples
+    --------
+    >>> T = get_transmissivities(heads, model, r=[0, 1], c=[0, 1])
+    >>> T = get_transmissivities(heads, model, x=[100.0, 200.0], y=[50.0, 150.0])
+    """
+
+    # get grid dims
+    if (modelgrid := getattr(m, "modelgrid", None)) is not None:
+        grid_type = modelgrid.grid_type
+        nlay = m.modelgrid.nlay
+        if grid_type == "structured":
+            nrow = m.modelgrid.nrow
+            ncol = m.modelgrid.ncol
+        elif (ncpl := getattr(m.modelgrid, "ncpl", None)) is None:
+            raise ValueError(f"Unsupported grid type: {grid_type}")
+    else:
+        grid_type = "structured"
+        nlay = m.nlay
+        nrow = m.nrow
+        ncol = m.ncol
+
+    # get slicing indices
+    if r is not None and c is not None:
+        if grid_type != "structured":
+            raise ValueError("r, c parameters only valid for structured grids")
+        indices = (r, c)
+    elif x is not None and y is not None:
+        points = zip(np.atleast_1d(x), np.atleast_1d(y))
+        if grid_type == "structured":
+            indices = [m.modelgrid.intersect(xi, yi) for xi, yi in points]
+            indices = tuple(np.array(idcs) for idcs in zip(*indices))
+        else:
+            indices = (np.array([m.modelgrid.intersect(xi, yi) for xi, yi in points]),)
+    else:
+        raise ValueError("Must specify r, c indices or x, y locations.")
+
+    # slice k
     paklist = m.get_package_list()
     if "LPF" in paklist:
-        hk = m.lpf.hk.array[:, r, c]
+        hk = m.lpf.hk.array[(slice(None),) + indices]
     elif "UPW" in paklist:
-        hk = m.upw.hk.array[:, r, c]
+        hk = m.upw.hk.array[(slice(None),) + indices]
+    elif "NPF" in paklist:
+        hk = m.npf.k.array[(slice(None),) + indices]
     else:
-        raise ValueError("No LPF or UPW package.")
+        raise ValueError("No LPF, UPW, or NPF package.")
 
-    botm = m.dis.botm.array[:, r, c]
+    # slice botm
+    botm = m.dis.botm.array[(slice(None),) + indices]
 
-    if heads.shape == (m.nlay, m.nrow, m.ncol):
-        heads = heads[:, r, c]
+    # slice heads
+    if grid_type == "structured" and heads.shape == (nlay, nrow, ncol):
+        heads = heads[(slice(None),) + indices]
+    elif grid_type != "structured" and heads.shape == (nlay, ncpl):
+        heads = heads[(slice(None),) + indices]
+    if heads.shape != botm.shape:
+        raise ValueError("Shape of heads array must be nlay x nhyd")
 
-    msg = "Shape of heads array must be nlay x nhyd"
-    assert heads.shape == botm.shape, msg
-
-    # set open interval tops/bottoms to model top/bottom if None
+    # open interval tops/bottoms default to model top/bottom
     if sctop is None:
-        sctop = m.dis.top.array[r, c]
+        sctop = m.dis.top.array[indices]
     if scbot is None:
-        scbot = m.dis.botm.array[-1, r, c]
+        scbot = m.dis.botm.array[(-1,) + indices]
 
     # make an array of layer tops
     tops = np.empty_like(botm, dtype=float)
-    tops[0, :] = m.dis.top.array[r, c]
+    tops[0, :] = m.dis.top.array[indices]
     tops[1:, :] = botm[:-1]
 
     # expand top and bottom arrays to be same shape as botm, thickness, etc.
@@ -295,9 +338,7 @@ def get_extended_budget(
         matched_name = [s for s in rec_names if budget_term in s]
         if not matched_name:
             raise RuntimeError(budget_term + err_msg)
-        frf = cbf.get_data(
-            idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term
-        )
+        frf = cbf.get_data(idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term)
         Qx_ext[:, :, 1:] = frf[0]
         # SWI2 package
         budget_term_swi = "SWIADDTOFRF"
@@ -315,9 +356,7 @@ def get_extended_budget(
         matched_name = [s for s in rec_names if budget_term in s]
         if not matched_name:
             raise RuntimeError(budget_term + err_msg)
-        fff = cbf.get_data(
-            idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term
-        )
+        fff = cbf.get_data(idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term)
         Qy_ext[:, 1:, :] = -fff[0]
         # SWI2 package
         budget_term_swi = "SWIADDTOFFF"
@@ -335,9 +374,7 @@ def get_extended_budget(
         matched_name = [s for s in rec_names if budget_term in s]
         if not matched_name:
             raise RuntimeError(budget_term + err_msg)
-        flf = cbf.get_data(
-            idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term
-        )
+        flf = cbf.get_data(idx=idx, kstpkper=kstpkper, totim=totim, text=budget_term)
         Qz_ext[1:, :, :] = -flf[0]
         # SWI2 package
         budget_term_swi = "SWIADDTOFLF"
@@ -352,9 +389,7 @@ def get_extended_budget(
     if boundary_ifaces is not None:
         # need calculated heads for some stresses and to check hnoflo and hdry
         if hdsfile is None:
-            raise ValueError(
-                "hdsfile must be provided when using boundary_ifaces"
-            )
+            raise ValueError("hdsfile must be provided when using boundary_ifaces")
         if isinstance(hdsfile, (bf.HeadFile, fm.FormattedHeadFile)):
             hds = hdsfile
         else:
@@ -366,9 +401,7 @@ def get_extended_budget(
 
         # get hnoflo and hdry values
         if model is None:
-            raise ValueError(
-                "model must be provided when using boundary_ifaces"
-            )
+            raise ValueError("model must be provided when using boundary_ifaces")
         noflo_or_dry = np.logical_or(head == model.hnoflo, head == model.hdry)
 
         for budget_term, iface_info in boundary_ifaces.items():
@@ -410,9 +443,7 @@ def get_extended_budget(
                         np.logical_not(noflo_or_dry[lay, :, :]),
                         np.logical_not(already_found),
                     )
-                    already_found = np.logical_or(
-                        already_found, water_table[lay, :, :]
-                    )
+                    already_found = np.logical_or(already_found, water_table[lay, :, :])
                 Q_stress[np.logical_not(water_table)] = 0.0
 
             # case where the same iface is assigned to all cells
@@ -532,9 +563,7 @@ def get_extended_budget(
                     elif iface == 6:
                         Qz_ext[lay, row, col] -= Q_stress_cell
             else:
-                raise TypeError(
-                    "boundary_ifaces value must be either int or list."
-                )
+                raise TypeError("boundary_ifaces value must be either int or list.")
 
     return Qx_ext, Qy_ext, Qz_ext
 
@@ -600,16 +629,13 @@ def get_specific_discharge(
 
         if vectors[ix].shape == modelgrid.shape:
             tqx = np.zeros(
-                (modelgrid.nlay, modelgrid.nrow, modelgrid.ncol + 1),
-                dtype=np.float32,
+                (modelgrid.nlay, modelgrid.nrow, modelgrid.ncol + 1), dtype=np.float32
             )
             tqy = np.zeros(
-                (modelgrid.nlay, modelgrid.nrow + 1, modelgrid.ncol),
-                dtype=np.float32,
+                (modelgrid.nlay, modelgrid.nrow + 1, modelgrid.ncol), dtype=np.float32
             )
             tqz = np.zeros(
-                (modelgrid.nlay + 1, modelgrid.nrow, modelgrid.ncol),
-                dtype=np.float32,
+                (modelgrid.nlay + 1, modelgrid.nrow, modelgrid.ncol), dtype=np.float32
             )
             if vectors[0] is not None:
                 tqx[:, :, 1:] = vectors[0]
@@ -628,8 +654,7 @@ def get_specific_discharge(
 
         else:
             raise IndexError(
-                "Classical budget components must have "
-                "the same shape as the modelgrid"
+                "Classical budget components must have the same shape as the modelgrid"
             )
     else:
         spdis = vectors
@@ -652,9 +677,7 @@ def get_specific_discharge(
         if modelgrid._idomain is None:
             modelgrid._idomain = model.dis.ibound
         if head is not None:
-            noflo_or_dry = np.logical_or(
-                head == model.hnoflo, head == model.hdry
-            )
+            noflo_or_dry = np.logical_or(head == model.hnoflo, head == model.hdry)
             modelgrid._idomain[noflo_or_dry] = 0
 
         # get cross section areas along x
@@ -675,26 +698,16 @@ def get_specific_discharge(
             cross_area_x = (
                 delc[:]
                 * 0.5
-                * (
-                    saturated_thickness[:, :, :-1]
-                    + saturated_thickness[:, :, 1:]
-                )
+                * (saturated_thickness[:, :, :-1] + saturated_thickness[:, :, 1:])
             )
             cross_area_y = (
                 delr
                 * 0.5
-                * (
-                    saturated_thickness[:, 1:, :]
-                    + saturated_thickness[:, :-1, :]
-                )
+                * (saturated_thickness[:, 1:, :] + saturated_thickness[:, :-1, :])
             )
-            qx[:, :, 1:] = (
-                0.5 * (tqx[:, :, 2:] + tqx[:, :, 1:-1]) / cross_area_x
-            )
+            qx[:, :, 1:] = 0.5 * (tqx[:, :, 2:] + tqx[:, :, 1:-1]) / cross_area_x
             qx[:, :, 0] = 0.5 * tqx[:, :, 1] / cross_area_x[:, :, 0]
-            qy[:, 1:, :] = (
-                0.5 * (tqy[:, 2:, :] + tqy[:, 1:-1, :]) / cross_area_y
-            )
+            qy[:, 1:, :] = 0.5 * (tqy[:, 2:, :] + tqy[:, 1:-1, :]) / cross_area_y
             qy[:, 0, :] = 0.5 * tqy[:, 1, :] / cross_area_y[:, 0, :]
             qz = 0.5 * (tqz[1:, :, :] + tqz[:-1, :, :]) / cross_area_z
 

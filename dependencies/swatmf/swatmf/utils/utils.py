@@ -13,6 +13,7 @@ import numpy as np
 import os 
 import datetime
 from tqdm import tqdm
+from calendar import monthrange
 
 def obds_df(strobd_file, wt_obd_file):
     str_obd = pd.read_csv(
@@ -87,8 +88,6 @@ def export_avg_mgwsw_MF(wd, startDate, scdate, ecdate, nrivs):
     mdf.to_excel('{}.xlsx'.format(filename), index=False)
     print(mdf)
     # print(mdf)
-
-
 
 def export_avg_mgwsw(self):
     
@@ -200,6 +199,41 @@ def export_avg_mgwsw(self):
             "'GWSW"+"(" + str(selectedDate) + 
             ")_annual.txt' file is exported to your 'exported_files' folder!")
         msgBox.exec_()
+
+# Function to add last day of month to column names
+def add_last_day_to_month_cols(col_name):
+    if '_' in col_name and len(col_name.split('_')[-1]) == 6:
+        try:
+            parts = col_name.split('_')
+            year_month = parts[-1]
+            year = int(year_month[:4])
+            month = int(year_month[4:6])
+
+            # Get last day of the month
+            last_day = monthrange(year, month)[1]
+
+            # Reonstruct the column name with the last day
+            new_col_name = '_'.join(parts[:-1]) + f'_{year_month}{last_day:02d}'
+            return new_col_name
+        except (ValueError, IndexError):
+            return col_name # Return original if parsing fails
+    return col_name
+
+def create_new_csv(input_csv, output_csv):
+    df = pd.read_csv(input_csv)
+
+    # Apply the function to each column name
+    new_columns = [add_last_day_to_month_cols(col) for col in df.columns]
+
+    # Update the DataFrame's columns
+    df.columns = new_columns
+
+    # Save the modified DataFrame to a new CSV file
+    df.to_csv(output_csv, index=False)
+    print(f"New CSV file created: {output_csv}")
+
+
+
 
 
 

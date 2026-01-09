@@ -1,10 +1,11 @@
 import errno
 import inspect
-import os.path
+import os
 import sys
 import warnings
+from os import PathLike, curdir
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union, cast
 
 import numpy as np
 
@@ -21,7 +22,8 @@ from flopy.mf6.mfbase import (
     PackageContainerType,
     VerbosityLevel,
 )
-from flopy.mf6.mfpackage import MFPackage
+from flopy.mf6.mfmodel import MFModel
+from flopy.mf6.mfpackage import MFChildPackages, MFPackage
 from flopy.mf6.modflow import mfnam, mftdis
 from flopy.mf6.utils import binaryfile_utils, mfobservation
 
@@ -237,7 +239,7 @@ class MFSimulationData:
 
     """
 
-    def __init__(self, path: Union[str, os.PathLike], mfsim):
+    def __init__(self, path: Union[str, PathLike], mfsim):
         # --- formatting variables ---
         self.indent_string = "  "
         self.constant_formatting = ["constant", ""]
@@ -254,7 +256,7 @@ class MFSimulationData:
         self.verify_data = True
         self.debug = False
         self.verbose = True
-        self.verbosity_level = VerbosityLevel.normal
+        self._verbosity_level = VerbosityLevel.normal
         self.max_columns_user_set = False
         self.max_columns_auto_set = False
         self.use_pandas = True
@@ -274,6 +276,17 @@ class MFSimulationData:
         # --- temporary variables ---
         # other external files referenced
         self.referenced_files = {}
+
+    @property
+    def verbosity_level(self):
+        return self._verbosity_level
+
+    @verbosity_level.setter
+    def verbosity_level(self, val):
+        if isinstance(val, VerbosityLevel):
+            self._verbosity_level = val
+        elif isinstance(val, int):
+            self._verbosity_level = VerbosityLevel(val)
 
     @property
     def lazy_io(self):
@@ -381,7 +394,7 @@ class MFSimulationData:
         )
 
 
-class MFSimulationBase(PackageContainer):
+class MFSimulationBase:
     """
     Entry point into any MODFLOW simulation.
 
@@ -391,48 +404,51 @@ class MFSimulationBase(PackageContainer):
 
     Parameters
     ----------
-    sim_name : str
+    sim_name : str, default "sim"
         Name of the simulation.
-    version : str
-        Version of MODFLOW 6 executable
-    exe_name : str
-        Path to MODFLOW 6 executable
-    sim_ws : str
+    version : str, default "mf6"
+        Version of MODFLOW 6 executable.
+    exe_name : str, default "mf6"
+        Path to MODFLOW 6 executable.
+    sim_ws : str or PathLike, default ".' (curdir)
         Path to MODFLOW 6 simulation working folder.  This is the folder
         containing the simulation name file.
-    verbosity_level : int
-        Verbosity level of standard output from 0 to 2. When 0 is specified no
-        standard output is written.  When 1 is specified standard
-        error/warning messages with some informational messages are written.
-        When 2 is specified full error/warning/informational messages are
-        written (this is ideal for debugging).
-    continue_ : bool
+    verbosity_level : int, default 1
+        Verbosity level of standard output:
+
+            0. No standard output
+            1. Standard error/warning messages with some informational
+               messages
+            2. Verbose mode with full error/warning/informational messages.
+               This is ideal for debugging.
+    continue_ : bool, optional
         Sets the continue option in the simulation name file. The continue
         option is a keyword flag to indicate that the simulation should
         continue even if one or more solutions do not converge.
-    nocheck : bool
-         Sets the nocheck option in the simulation name file. The nocheck
-         option is a keyword flag to indicate that the model input check
-         routines should not be called prior to each time step. Checks
-         are performed by default.
-    memory_print_option : str
-         Sets memory_print_option in the simulation name file.
-         Memory_print_option is a flag that controls printing of detailed
-         memory manager usage to the end of the simulation list file.  NONE
-         means do not print detailed information. SUMMARY means print only
-         the total memory for each simulation component. ALL means print
-         information for each variable stored in the memory manager. NONE is
-         default if memory_print_option is not specified.
-    write_headers: bool
-        When true flopy writes a header to each package file indicating that
+    nocheck : bool, optional
+        Sets the nocheck option in the simulation name file. The nocheck
+        option is a keyword flag to indicate that the model input check
+        routines should not be called prior to each time step. Checks
+        are performed by default.
+    memory_print_option : str, optional
+        Sets memory_print_option in the simulation name file.
+        Memory_print_option is a flag that controls printing of detailed
+        memory manager usage to the end of the simulation list file.  None
+        means do not print detailed information. SUMMARY means print only
+        the total memory for each simulation component. ALL means print
+        information for each variable stored in the memory manager. None is
+        default if memory_print_option is not specified.
+    write_headers: bool, default True
+        When True flopy writes a header to each package file indicating that
         it was created by flopy.
-    lazy_io: bool
-        When true flopy only reads external data when the data is requested
+    lazy_io: bool, default False
+        When True flopy only reads external data when the data is requested
         and only writes external data if the data has changed.  This option
         automatically overrides the verify_data and auto_set_sizes, turning
         both off.
-    use_pandas: bool
-        Load/save data using pandas dataframes (for supported data)
+    use_pandas: bool, default True
+        Load/save data using pandas dataframes (for supported data).
+
     Examples
     --------
     >>> s = MFSimulationBase.load('my simulation', 'simulation.nam')
@@ -450,8 +466,8 @@ class MFSimulationBase(PackageContainer):
         self,
         sim_name="sim",
         version="mf6",
-        exe_name: Union[str, os.PathLike] = "mf6",
-        sim_ws: Union[str, os.PathLike] = os.curdir,
+        exe_name: Union[str, PathLike] = "mf6",
+        sim_ws: Union[str, PathLike] = curdir,
         verbosity_level=1,
         continue_=None,
         nocheck=None,
@@ -460,7 +476,8 @@ class MFSimulationBase(PackageContainer):
         lazy_io=False,
         use_pandas=True,
     ):
-        super().__init__(MFSimulationData(sim_ws, self), sim_name)
+        self.name = sim_name
+        self.simulation_data = MFSimulationData(sim_ws, self)
         self.simulation_data.verbosity_level = self._resolve_verbosity_level(
             verbosity_level
         )
@@ -468,15 +485,7 @@ class MFSimulationBase(PackageContainer):
         self.simulation_data.use_pandas = use_pandas
         if lazy_io:
             self.simulation_data.lazy_io = True
-
-        # verify metadata
-        fpdata = mfstructure.MFStructure()
-        if not fpdata.valid:
-            excpt_str = (
-                "Invalid package metadata.  Unable to load MODFLOW "
-                "file structure metadata."
-            )
-            raise FlopyException(excpt_str)
+        self._package_container = PackageContainer(self.simulation_data)
 
         # initialize
         self.dimensions = None
@@ -489,7 +498,7 @@ class MFSimulationBase(PackageContainer):
         self._exchange_files = {}
         self._solution_files = {}
         self._other_files = {}
-        self.structure = fpdata.sim_struct
+        self.structure = mfstructure.MFStructure().sim_struct
         self.model_type = None
 
         self._exg_file_num = {}
@@ -592,7 +601,7 @@ class MFSimulationBase(PackageContainer):
         Override __repr__ to print custom string.
 
         Returns
-        --------
+        -------
             repr string : str
                 string describing object
 
@@ -604,7 +613,7 @@ class MFSimulationBase(PackageContainer):
         Override __str__ to print custom string.
 
         Returns
-        --------
+        -------
             str string : str
                 string describing object
 
@@ -619,7 +628,7 @@ class MFSimulationBase(PackageContainer):
             )
         )
 
-        for package in self._packagelist:
+        for package in self._package_container.packagelist:
             pk_str = package._get_data_str(formal, False)
             if formal:
                 if len(pk_str.strip()) > 0:
@@ -660,7 +669,7 @@ class MFSimulationBase(PackageContainer):
         Return a list of model names associated with this simulation.
 
         Returns
-        --------
+        -------
             list: list of model names
 
         """
@@ -672,19 +681,93 @@ class MFSimulationBase(PackageContainer):
         Return list of exchange files associated with this simulation.
 
         Returns
-        --------
+        -------
             list: list of exchange names
 
         """
         return self._exchange_files.values()
 
+    @property
+    def package_key_dict(self):
+        """
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_type_dict
+
+    @property
+    def package_dict(self):
+        """Returns a copy of the package name dictionary.
+
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_dict
+
+    @property
+    def package_names(self):
+        """Returns a list of package names.
+
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_names
+
+    @property
+    def package_type_dict(self):
+        """
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_type_dict
+
+    @property
+    def package_name_dict(self):
+        """
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_name_dict
+
+    @property
+    def package_filename_dict(self):
+        """
+        .. deprecated:: 3.9
+            This method is for internal use only and will be deprecated.
+        """
+        warnings.warn(
+            "This method is for internal use only and will be deprecated.",
+            category=DeprecationWarning,
+        )
+        return self._package_container.package_filename_dict
+
     @staticmethod
     def load(
-        cls_child,
+        cls_child: type["MFSimulationBase"],
         sim_name="modflowsim",
         version="mf6",
-        exe_name: Union[str, os.PathLike] = "mf6",
-        sim_ws: Union[str, os.PathLike] = os.curdir,
+        exe_name: Union[str, PathLike] = "mf6",
+        sim_ws: Union[str, PathLike] = curdir,
         strict=True,
         verbosity_level=1,
         load_only=None,
@@ -699,48 +782,48 @@ class MFSimulationBase(PackageContainer):
 
         Parameters
         ----------
-        cls_child :
-            cls object of child class calling load
-        sim_name : str
+        sim_name : str, default "modflowsim"
             Name of the simulation.
-        version : str
-            MODFLOW version
-        exe_name : str or PathLike
-            Path to MODFLOW executable (relative to the simulation workspace or absolute)
-        sim_ws : str or PathLike
-            Path to simulation workspace
-        strict : bool
-            Strict enforcement of file formatting
-        verbosity_level : int
-            Verbosity level of standard output
-                0: No standard output
-                1: Standard error/warning messages with some informational
+        version : str, default "mf6"
+            Version of MODFLOW 6 executable.
+        exe_name : str or PathLike, default "mf6"
+            Path to MODFLOW 6 executable.
+        sim_ws : str or PathLike, default "." (curdir)
+            Path to MODFLOW 6 simulation working folder.  This is the folder
+            containing the simulation name file.
+        strict : bool, default True
+            Strict enforcement of file formatting.
+        verbosity_level : int, default 1
+            Verbosity level of standard output:
+
+                0. No standard output
+                1. Standard error/warning messages with some informational
                    messages
-                2: Verbose mode with full error/warning/informational
-                   messages.  This is ideal for debugging.
-        load_only : list
+                2. Verbose mode with full error/warning/informational messages.
+                   This is ideal for debugging.
+        load_only : list, optional
             List of package abbreviations or package names corresponding to
             packages that flopy will load. default is None, which loads all
             packages. the discretization packages will load regardless of this
             setting. subpackages, like time series and observations, will also
             load regardless of this setting.
             example list: ['ic', 'maw', 'npf', 'oc', 'ims', 'gwf6-gwf6']
-        verify_data : bool
-            Verify data when it is loaded. this can slow down loading
-        write_headers: bool
-            When true flopy writes a header to each package file indicating
-            that it was created by flopy
-        lazy_io: bool
-            When true flopy only reads external data when the data is requested
+        verify_data : bool, default False
+            Verify data when it is loaded. This can slow down loading.
+        write_headers: bool, default True
+            When True flopy writes a header to each package file indicating
+            that it was created by flopy.
+        lazy_io: bool, default False
+            When True flopy only reads external data when the data is requested
             and only writes external data if the data has changed.  This option
             automatically overrides the verify_data and auto_set_sizes, turning
             both off.
-        use_pandas: bool
-            Load/save data using pandas dataframes (for supported data)
+        use_pandas: bool, default True
+            Load/save data using pandas dataframes (for supported data).
 
         Returns
         -------
-        sim : MFSimulation object
+        MFSimulation object
 
         Examples
         --------
@@ -767,7 +850,7 @@ class MFSimulationBase(PackageContainer):
             print("loading simulation...")
 
         # build case consistent load_only dictionary for quick lookups
-        load_only = instance._load_only_dict(load_only)
+        load_only = PackageContainer._load_only_dict(load_only)
 
         # load simulation name file
         if verbosity_level.value >= VerbosityLevel.normal.value:
@@ -857,7 +940,7 @@ class MFSimulationBase(PackageContainer):
                     message=message,
                 )
             for exgfile in exch_data:
-                if load_only is not None and not instance._in_pkg_list(
+                if load_only is not None and not PackageContainer._in_pkg_list(
                     load_only, exgfile[0], exgfile[2]
                 ):
                     if (
@@ -880,7 +963,7 @@ class MFSimulationBase(PackageContainer):
 
                 exchange_name = f"{exchange_type}_EXG_{exchange_file_num}"
                 # find package class the corresponds to this exchange type
-                package_obj = instance.package_factory(
+                package_obj = PackageContainer.package_factory(
                     exchange_type.replace("-", "").lower(), ""
                 )
                 if not package_obj:
@@ -901,7 +984,7 @@ class MFSimulationBase(PackageContainer):
                         value_,
                         traceback_,
                         message,
-                        instance._simulation_data.debug,
+                        instance.simulation_data.debug,
                     )
 
                 # build and load exchange package object
@@ -919,7 +1002,7 @@ class MFSimulationBase(PackageContainer):
                         f"  loading exchange package {exchange_file._get_pname()}..."
                     )
                 exchange_file.load(strict)
-                instance._add_package(exchange_file, exchange_file.path)
+                instance._package_container.add_package(exchange_file)
                 instance._exchange_files[exgfile[1]] = exchange_file
 
         # load simulation packages
@@ -942,7 +1025,7 @@ class MFSimulationBase(PackageContainer):
             )
         for solution_group in solution_group_dict.values():
             for solution_info in solution_group:
-                if load_only is not None and not instance._in_pkg_list(
+                if load_only is not None and not PackageContainer._in_pkg_list(
                     load_only, solution_info[0], solution_info[2]
                 ):
                     if (
@@ -954,7 +1037,7 @@ class MFSimulationBase(PackageContainer):
                         )
                     continue
                 # create solution package
-                sln_package_obj = instance.package_factory(
+                sln_package_obj = PackageContainer.package_factory(
                     solution_info[0][:-1].lower(), ""
                 )
                 sln_package = sln_package_obj(
@@ -975,20 +1058,48 @@ class MFSimulationBase(PackageContainer):
             instance.check()
         return instance
 
+    def get_package(self, name=None, type_only=False, name_only=False):
+        """
+        Finds a package by package name, package key, package type, or partial
+        package name. returns either a single package, a list of packages,
+        or None.
+
+        Parameters
+        ----------
+        name : str
+            Name or type of the package, 'my-riv-1, 'RIV', 'LPF', etc.
+        type_only : bool
+            Search for package by type only
+        name_only : bool
+            Search for package by name only
+
+        Returns
+        -------
+        pp : Package object
+
+        """
+        return self._package_container.get_package(name, type_only, name_only)
+
     def check(
         self,
-        f: Optional[Union[str, os.PathLike]] = None,
+        f: Union[str, PathLike, None] = None,
         verbose=True,
         level=1,
     ):
         """
         Check model data for common errors.
 
+        Warning
+        -------
+        The MF6 check mechanism is deprecated pending reimplementation
+        in a future release. While the checks API will remain in place
+        through 3.x, it may be unstable, and will likely change in 4.x.
+
         Parameters
         ----------
         f : str or PathLike, optional
             String defining file name or file handle for summary file
-            of check method output. If str or pathlike, a file handle
+            of check method output. If str or PathLike, a file handle
             is created. If None, the method does not write results to
             a summary file. (default is None)
         verbose : bool
@@ -1010,6 +1121,7 @@ class MFSimulationBase(PackageContainer):
         >>> m = flopy.modflow.Modflow.load('model.nam')
         >>> m.check()
         """
+
         # check instance for simulation-level check
         chk_list = []
 
@@ -1054,12 +1166,12 @@ class MFSimulationBase(PackageContainer):
     def load_package(
         self,
         ftype,
-        fname: Union[str, os.PathLike],
+        fname: Union[str, PathLike],
         pname,
         strict,
-        ref_path: Union[str, os.PathLike],
+        ref_path: Union[str, PathLike],
         dict_package_name=None,
-        parent_package=None,
+        parent_package: Optional[MFPackage] = None,
     ):
         """
         Load a package from a file.
@@ -1119,7 +1231,7 @@ class MFSimulationBase(PackageContainer):
             dict_package_name = ftype
 
         # get package object from file type
-        package_obj = self.package_factory(ftype, "")
+        package_obj = PackageContainer.package_factory(ftype, "")
         # create package
         package = package_obj(
             self,
@@ -1131,19 +1243,19 @@ class MFSimulationBase(PackageContainer):
         package.load(strict)
         self._other_files[package.filename] = package
         # register child package with the simulation
-        self._add_package(package, package.path)
+        self._package_container.add_package(package)
         if parent_package is not None:
             # register child package with the parent package
-            parent_package._add_package(package, package.path)
+            parent_package.add_package(package)
         return package
 
     def register_ims_package(
-        self, solution_file: MFPackage, model_list: Union[str, List[str]]
+        self, solution_file: MFPackage, model_list: Union[str, list[str]]
     ):
         self.register_solution_package(solution_file, model_list)
 
     def register_solution_package(
-        self, solution_file: MFPackage, model_list: Union[str, List[str]]
+        self, solution_file: MFPackage, model_list: Union[str, list[str]]
     ):
         """
         Register a solution package with the simulation.
@@ -1234,14 +1346,14 @@ class MFSimulationBase(PackageContainer):
                         "New solution package will replace old package"
                         ".".format(file.package_name)
                     )
-                self._remove_package(self._solution_files[file.filename])
+                self._package_container.remove_package(
+                    self._solution_files[file.filename]
+                )
                 del self._solution_files[file.filename]
                 break
         # register solution package
         if not in_simulation:
-            self._add_package(
-                solution_file, self._get_package_path(solution_file)
-            )
+            self._package_container.add_package(solution_file)
         # do not allow a solution package to be registered twice with the
         # same simulation
         if not in_simulation:
@@ -1320,7 +1432,7 @@ class MFSimulationBase(PackageContainer):
             )
             raise MFDataException(package=package_type, message=message)
         # find package - only supporting utl packages for now
-        package_obj = self.package_factory(package_type, "utl")
+        package_obj = PackageContainer.package_factory(package_type, "utl")
         if package_obj is not None:
             # determine file name
             if "filename" not in package_data:
@@ -1476,6 +1588,12 @@ class MFSimulationBase(PackageContainer):
     ):
         """Sets the simulation's list and array data to be stored externally.
 
+        Warning
+        -------
+        The MF6 check mechanism is deprecated pending reimplementation
+        in a future release. While the checks API will remain in place
+        through 3.x, it may be unstable, and will likely change in 4.x.
+
         Parameters
         ----------
             check_data: bool
@@ -1490,6 +1608,7 @@ class MFSimulationBase(PackageContainer):
             binary: bool
                 Whether file will be stored as binary
         """
+
         # copy any files whose paths have changed
         self.simulation_data.mfpath.copy_files()
         # set data external for all packages in all models
@@ -1526,6 +1645,7 @@ class MFSimulationBase(PackageContainer):
 
     def set_all_data_internal(self, check_data=True):
         # set data external for all packages in all models
+
         for model in self._models.values():
             model.set_all_data_internal(check_data)
         # set data external for solution packages
@@ -1626,7 +1746,7 @@ class MFSimulationBase(PackageContainer):
         if silent:
             self.simulation_data.verbosity_level = saved_verb_lvl
 
-    def set_sim_path(self, path: Union[str, os.PathLike]):
+    def set_sim_path(self, path: Union[str, PathLike]):
         """Return a list of output data keys.
 
         Parameters
@@ -1688,7 +1808,7 @@ class MFSimulationBase(PackageContainer):
                 default is None, i.e. use the builtion print
 
         Returns
-        --------
+        -------
             success : bool
             buff : list of lines of stdout
 
@@ -1756,7 +1876,7 @@ class MFSimulationBase(PackageContainer):
             if package.filename in self._other_files:
                 del self._other_files[package.filename]
 
-            self._remove_package(package)
+            self._package_container.remove_package(package)
 
         # if this is a package referenced from a filerecord, remove filerecord
         # from name file
@@ -1766,7 +1886,10 @@ class MFSimulationBase(PackageContainer):
             if isinstance(file_record, mfdata.MFData):
                 file_record.set_data(None)
             if hasattr(self.name_file, package.package_type):
-                child_pkgs = getattr(self.name_file, package.package_type)
+                child_pkgs = cast(
+                    MFChildPackages,
+                    getattr(self.name_file, package.package_type),
+                )
                 child_pkgs._remove_packages(package.filename, True)
 
     @property
@@ -1775,14 +1898,14 @@ class MFSimulationBase(PackageContainer):
         Return a dictionary of models associated with this simulation.
 
         Returns
-        --------
+        -------
             model dict : dict
                 dictionary of models
 
         """
         return self._models.copy()
 
-    def get_model(self, model_name=None):
+    def get_model(self, model_name=None) -> Optional[MFModel]:
         """
         Returns the models in the simulation with a given model name, name
         file name, or model type.
@@ -1794,7 +1917,7 @@ class MFSimulationBase(PackageContainer):
                 will get the first model.
 
         Returns
-        --------
+        -------
             model : MFModel
 
         """
@@ -1822,7 +1945,7 @@ class MFSimulationBase(PackageContainer):
                 Name of exchange file to get
 
         Returns
-        --------
+        -------
             exchange package : MFPackage
 
         """
@@ -1842,7 +1965,7 @@ class MFSimulationBase(PackageContainer):
                 Name of mover file to get
 
         Returns
-        --------
+        -------
             mover package : MFPackage
 
         """
@@ -1995,7 +2118,7 @@ class MFSimulationBase(PackageContainer):
         if (
             package.package_type.lower() == "tdis"
             and self._tdis_file is not None
-            and self._tdis_file in self._packagelist
+            and self._tdis_file in self._package_container.packagelist
         ):
             # tdis package already exists. there can be only one tdis
             # package.  remove existing tdis package
@@ -2007,11 +2130,11 @@ class MFSimulationBase(PackageContainer):
                     "WARNING: tdis package already exists. Replacing "
                     "existing tdis package."
                 )
-            self._remove_package(self._tdis_file)
+            self._package_container.remove_package(self._tdis_file)
         elif (
             package.package_type.lower()
             in mfstructure.MFStructure().flopy_dict["solution_packages"]
-            and pname in self.package_name_dict
+            and pname in self._package_container.package_name_dict
         ):
             if (
                 self.simulation_data.verbosity_level.value
@@ -2022,11 +2145,14 @@ class MFSimulationBase(PackageContainer):
                     f"{package.package_name.lower()} already exists.  "
                     "Replacing existing package."
                 )
-            self._remove_package(self.package_name_dict[pname])
+            self._package_container.remove_package(
+                self._package_container.package_name_dict[pname]
+            )
         else:
             if (
                 package.filename in self._other_files
-                and self._other_files[package.filename] in self._packagelist
+                and self._other_files[package.filename]
+                in self._package_container.packagelist
             ):
                 # other package with same file name already exists.  remove old
                 # package
@@ -2038,7 +2164,9 @@ class MFSimulationBase(PackageContainer):
                         f"WARNING: package with name {pname} already exists. "
                         "Replacing existing package."
                     )
-                self._remove_package(self._other_files[package.filename])
+                self._package_container.remove_package(
+                    self._other_files[package.filename]
+                )
                 del self._other_files[package.filename]
 
     def register_package(
@@ -2065,7 +2193,7 @@ class MFSimulationBase(PackageContainer):
                 Produce a filename for this package
 
         Returns
-        --------
+        -------
             (path : tuple, package structure : MFPackageStructure)
 
         """
@@ -2086,7 +2214,7 @@ class MFSimulationBase(PackageContainer):
                 # all but solution packages get added here.  solution packages
                 # are added during solution package registration
                 self._remove_package_by_type(package)
-                self._add_package(package, path)
+                self._package_container.add_package(package)
         sln_dict = mfstructure.MFStructure().flopy_dict["solution_packages"]
         if package.package_type.lower() == "nam":
             if not package.internal_package:
@@ -2202,7 +2330,7 @@ class MFSimulationBase(PackageContainer):
                Solution group of model
 
         Returns
-        --------
+        -------
            model_structure_object : MFModelStructure
         """
 
@@ -2251,7 +2379,7 @@ class MFSimulationBase(PackageContainer):
                 solution package file name
 
         Returns
-        --------
+        -------
             solution_package : MFPackage
 
         """
@@ -2307,7 +2435,7 @@ class MFSimulationBase(PackageContainer):
 
 
         Returns
-        --------
+        -------
             valid : bool
                 Whether this is a valid simulation
 
@@ -2509,7 +2637,7 @@ class MFSimulationBase(PackageContainer):
 
     def plot(
         self,
-        model_list: Optional[Union[str, List[str]]] = None,
+        model_list: Union[str, list[str], None] = None,
         SelPackList=None,
         **kwargs,
     ):
@@ -2521,31 +2649,31 @@ class MFSimulationBase(PackageContainer):
 
         Parameters
         ----------
-            model_list: list, optional
-                List of model names to plot, if none all models will be plotted
-            SelPackList: list, optional
-                List of package names to plot, if none all packages will be
-                plotted
-            kwargs:
-                filename_base : str
-                    Base file name that will be used to automatically
-                    generate file names for output image files. Plots will be
-                    exported as image files if file_name_base is not None.
-                    (default is None)
-                file_extension : str
-                    Valid matplotlib.pyplot file extension for savefig().
-                    Only used if filename_base is not None. (default is 'png')
-                mflay : int
-                    MODFLOW zero-based layer number to return.  If None, then
-                    all layers will be included. (default is None)
-                kper : int
-                    MODFLOW zero-based stress period number to return.
-                    (default is zero)
-                key : str
-                    MFList dictionary key. (default is None)
+        model_list : list, optional
+            List of model names to plot, if none all models will be plotted
+        SelPackList : list, optional
+            List of package names to plot, if none all packages will be
+            plotted
+        **kwargs : dict, optional
+            filename_base : str
+                Base file name that will be used to automatically
+                generate file names for output image files. Plots will be
+                exported as image files if file_name_base is not None.
+                (default is None)
+            file_extension : str
+                Valid matplotlib.pyplot file extension for savefig().
+                Only used if filename_base is not None. (default is 'png')
+            mflay : int
+                MODFLOW zero-based layer number to return.  If None, then
+                all layers will be included. (default is None)
+            kper : int
+                MODFLOW zero-based stress period number to return.
+                (default is zero)
+            key : str
+                MFList dictionary key. (default is None)
 
         Returns
-        --------
+        -------
              axes: (list)
                 matplotlib.pyplot.axes objects
 

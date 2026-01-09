@@ -1068,6 +1068,7 @@ def plot_tseries_ensembles(
     for i in range(len(obs)):
         time_col.append(obs.iloc[i, 0][-8:])
     obs['time'] = time_col
+    print(obs)
     obs['time'] = pd.to_datetime(obs['time'])
     # only non-zero observations
     # make a plot
@@ -1107,10 +1108,10 @@ def plot_tseries_ensembles(
         # plot posterior
         if pt_fill is not None:
             ax.fill_between(
-                df.index, df.pt_min, df.pt_max, interpolate=False, facecolor="g", alpha=0.6, label="Posterior ensemble",
+                df.index, df.pt_min, df.pt_max, interpolate=False, facecolor="b", alpha=0.6, label="Posterior ensemble",
                 zorder=2)
         else:
-            [ax.plot(tvals,pt_oe.loc[i,onames].values,"g",lw=0.5,alpha=0.7) for i in pt_oe.index]
+            [ax.plot(tvals,pt_oe.loc[i,onames].values,"b",lw=0.5,alpha=0.7) for i in pt_oe.index]
         # plot measured+noise 
         oobs = oobs.loc[oobs.weight>0,:]
         # tvals = oobs.time.values
@@ -1874,8 +1875,9 @@ def plot_each_obg(df, rel_idx):
     # df = handler.filter_candidates2()
     obgs = df.obgnme.unique()
     df = df[["obsval", "obgnme", "time", rel_idx]]
+    # print(obgs)
 
-    fig, axes = plt.subplots(figsize=(5.5, 12), nrows=len(obgs))
+    fig, axes = plt.subplots(figsize=(7, 7), nrows=len(obgs))
     for obg, ax in zip(obgs, axes):
         dff = df.loc[df["obgnme"]==obg]
         obds = dff.obsval.values

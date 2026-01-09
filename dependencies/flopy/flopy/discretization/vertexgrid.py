@@ -32,7 +32,7 @@ class VertexGrid(Grid):
         The value can be anything accepted by
         :meth:`pyproj.CRS.from_user_input() <pyproj.crs.CRS.from_user_input>`,
         such as an authority string (eg "EPSG:26916") or a WKT string.
-    prjfile : str or pathlike, optional if `crs` is specified
+    prjfile : str or PathLike, optional if `crs` is specified
         ESRI-style projection file with well-known text defining the CRS
         for the model grid (must be projected; geographic CRS are not supported).
     xoff : float
@@ -49,7 +49,7 @@ class VertexGrid(Grid):
         .. deprecated:: 3.5
            The following keyword options will be removed for FloPy 3.6:
 
-             - ``prj`` (str or pathlike): use ``prjfile`` instead.
+             - ``prj`` (str or PathLike): use ``prjfile`` instead.
              - ``epsg`` (int): use ``crs`` instead.
              - ``proj4`` (str): use ``crs`` instead.
 
@@ -61,7 +61,7 @@ class VertexGrid(Grid):
         returns list of cells and their vertices
 
     Methods
-    ----------
+    -------
     get_cell_vertices(cellid)
         returns vertices for a single cell at cellid.
 
@@ -140,7 +140,10 @@ class VertexGrid(Grid):
         if self._cell1d is not None:
             return len(self._cell1d)
         if self._botm is not None:
-            return len(self._botm[0])
+            if self._botm.ndim == 2:  # (nlay, ncpl)
+                return self._botm.shape[1]
+            elif self._botm.ndim == 1:  # (ncpl,)
+                return self._botm.shape[0]
         if self._cell2d is not None and self._nlay is None:
             return len(self._cell2d)
         else:
@@ -164,16 +167,12 @@ class VertexGrid(Grid):
     @property
     def cell1d(self):
         if self._cell1d is not None:
-            return [
-                [ivt for ivt in t if ivt is not None] for t in self._cell2d
-            ]
+            return [[ivt for ivt in t if ivt is not None] for t in self._cell1d]
 
     @property
     def cell2d(self):
         if self._cell2d is not None:
-            return [
-                [ivt for ivt in t if ivt is not None] for t in self._cell2d
-            ]
+            return [[ivt for ivt in t if ivt is not None] for t in self._cell2d]
 
     @property
     def verts(self):
@@ -190,7 +189,6 @@ class VertexGrid(Grid):
     @property
     def top_botm(self):
         new_top = np.expand_dims(self._top, 0)
-        # new_botm = np.expand_dims(self._botm, 0)
         return np.concatenate((new_top, self._botm), axis=0)
 
     @property
@@ -219,15 +217,28 @@ class VertexGrid(Grid):
         xgrid = self.xvertices
         ygrid = self.yvertices
 
+        # close the cell by connecting the last vertex with the first
+        close_cell = True
+        if self.cell1d is not None:
+            close_cell = False
+
+        # go through each cell and create a line segment for each face
         lines = []
-        for ncell, verts in enumerate(xgrid):
-            for ix, vert in enumerate(verts):
+        ncpl = len(xgrid)
+        for icpl in range(ncpl):
+            xcoords = xgrid[icpl]
+            ycoords = ygrid[icpl]
+            npoints = len(xcoords)
+            for ipoint in range(npoints - 1):
                 lines.append(
                     [
-                        (xgrid[ncell][ix - 1], ygrid[ncell][ix - 1]),
-                        (xgrid[ncell][ix], ygrid[ncell][ix]),
+                        (xcoords[ipoint], ycoords[ipoint]),
+                        (xcoords[ipoint + 1], ycoords[ipoint + 1]),
                     ]
                 )
+            if close_cell:
+                lines.append([(xcoords[-1], ycoords[-1]), (xcoords[0], ycoords[0])])
+
         self._copy_cache = True
         return lines
 
@@ -298,8 +309,11 @@ class VertexGrid(Grid):
         -------
             GeoDataFrame
         """
-        polys = [[self.get_cell_vertices(nn)] for nn in range(self.ncpl)]
-        gdf = super().geo_dataframe(polys)
+        cells = [[self.get_cell_vertices(nn)] for nn in range(self.ncpl)]
+        featuretype = "Polygon"
+        if self._cell1d is not None:
+            featuretype = "multilinestring"
+        gdf = super().geo_dataframe(cells, featuretype)
         return gdf
 
     def convert_grid(self, factor):
@@ -316,13 +330,9 @@ class VertexGrid(Grid):
         """
         if self.is_complete:
             return VertexGrid(
-                vertices=[
-                    [i[0], i[1] * factor, i[2] * factor]
-                    for i in self._vertices
-                ],
+                vertices=[[i[0], i[1] * factor, i[2] * factor] for i in self._vertices],
                 cell2d=[
-                    [i[0], i[1] * factor, i[2] * factor] + i[3:]
-                    for i in self._cell2d
+                    [i[0], i[1] * factor, i[2] * factor] + i[3:] for i in self._cell2d
                 ],
                 top=self.top * factor,
                 botm=self.botm * factor,
@@ -332,9 +342,7 @@ class VertexGrid(Grid):
                 angrot=self.angrot,
             )
         else:
-            raise AssertionError(
-                "Grid is not complete and cannot be converted"
-            )
+            raise AssertionError("Grid is not complete and cannot be converted")
 
     def intersect(self, x, y, z=None, local=False, forgive=False):
         """
@@ -456,12 +464,12 @@ class VertexGrid(Grid):
         if self._cell1d is not None:
             zcenters = []
             zvertices = []
-            vertexdict = {v[0]: [v[1], v[2], v[3]] for v in self._vertices}
+            vertexdict = {v[0]: [v[1], v[2]] for v in self._vertices}
             for cell1d in self.cell1d:
                 cell1d = tuple(cell1d)
                 xcenters.append(cell1d[1])
                 ycenters.append(cell1d[2])
-                zcenters.append(cell1d[3])
+                zcenters.append(0.0)
 
                 vert_number = []
                 for i in cell1d[3:]:
@@ -473,7 +481,7 @@ class VertexGrid(Grid):
                 for ix in vert_number:
                     xcellvert.append(vertexdict[ix][0])
                     ycellvert.append(vertexdict[ix][1])
-                    zcellvert.append(vertexdict[ix][2])
+                    zcellvert.append(0.0)
                 xvertices.append(xcellvert)
                 yvertices.append(ycellvert)
                 zvertices.append(zcellvert)

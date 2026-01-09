@@ -597,8 +597,7 @@ def filter_candidates2(
     pst_nam = obs_file[:-4]
     pars_info = get_par_offset(pst)
     sims_df = pd.read_csv(os.path.join(wd, obs_file))
-    
-    sims_df = sims_df.loc[sims_df.iloc[:, 1] < 0] # filter only lower waterlevel realizations
+    sims_df = sims_df.loc[sims_df.iloc[:, 1] < 0] # filter negative waterlevel realizations
     rel_nams = sims_df["real_name"].values
     sims_df = sims_df.iloc[:, 1:].T
     sims_df.columns = rel_nams

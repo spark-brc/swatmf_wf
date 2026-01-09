@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -26,8 +28,35 @@ class Point:
         self.y = y
         return
 
+    def offset(self, x0, y0):
+        self.x -= x0
+        self.y -= y0
+
+    def normalize(self, dx, dy):
+        if dx > 0.0:
+            self.x /= dx
+        if dy > 0.0:
+            self.y /= dy
+
+
+def normalize_points(a, b, c):
+    x0, y0 = min(a.x, b.x), min(a.y, b.y)
+    xl, yl = abs(a.x - b.x), abs(a.y - b.y)
+
+    a.offset(x0, y0)
+    b.offset(x0, y0)
+    c.offset(x0, y0)
+
+    a.normalize(xl, yl)
+    b.normalize(xl, yl)
+    c.normalize(xl, yl)
+
+    return a, b, c
+
 
 def isBetween(a, b, c, epsilon=0.001):
+    a, b, c = normalize_points(a, b, c)
+
     crossproduct = (c.y - a.y) * (b.x - a.x) - (c.x - a.x) * (b.y - a.y)
     if abs(crossproduct) > epsilon:
         return False  # (or != 0 if using integers)
@@ -93,12 +122,12 @@ def segment_face(ivert, ivlist1, ivlist2, vertices):
 
     for face in faces_to_check:
         iva, ivb = face
-        x, y = vertices[iva]
-        a = Point(x, y)
-        x, y = vertices[ivb]
-        b = Point(x, y)
+        xa, ya = vertices[iva]
+        xb, yb = vertices[ivb]
         for ivc in points_to_check:
             if ivc not in face:
+                a = Point(xa, ya)
+                b = Point(xb, yb)
                 x, y = vertices[ivc]
                 c = Point(x, y)
                 if isBetween(a, b, c):
@@ -221,10 +250,11 @@ def to_cvfd(
     # Now, go through each vertex and look at the cells that use the vertex.
     # For quadtree-like grids, there may be a need to add a new hanging node
     # vertex to the larger cell.
+    vertexdict_keys = list(vertexdict.keys())
     if not skip_hanging_node_check:
         if verbose:
             print("Checking for hanging nodes.")
-        vertexdict_keys = list(vertexdict.keys())
+
         finished = False
         while not finished:
             finished = True
@@ -243,7 +273,10 @@ def to_cvfd(
 
                         # don't share a face, so need to segment if necessary
                         segmented = segment_face(
-                            ivert, ivertlist1, ivertlist2, vertexdict_keys
+                            ivert,
+                            ivertlist1,
+                            ivertlist2,
+                            vertexdict_keys,
                         )
                         if segmented:
                             finished = False
@@ -324,7 +357,7 @@ def gridlist_to_verts(gridlist):
     vertdict = {}
     icell = 0
     for sg in gridlist:
-        ilays, irows, icols = np.where(sg.idomain > 0)
+        ilays, irows, icols = np.asarray(sg.idomain > 0).nonzero()
         for _, i, j in zip(ilays, irows, icols):
             v = sg.get_cell_vertices(i, j)
             vertdict[icell] = v + [v[0]]
@@ -358,9 +391,7 @@ def get_disv_gridprops(verts, iverts, xcyc=None):
     if xcyc is None:
         xcyc = np.empty((ncpl, 2), dtype=float)
         for icell in range(ncpl):
-            vlist = [
-                (verts[ivert, 0], verts[ivert, 1]) for ivert in iverts[icell]
-            ]
+            vlist = [(verts[ivert, 0], verts[ivert, 1]) for ivert in iverts[icell]]
             xcyc[icell, 0], xcyc[icell, 1] = centroid_of_polygon(vlist)
     else:
         assert xcyc.shape == (ncpl, 2)
@@ -369,10 +400,7 @@ def get_disv_gridprops(verts, iverts, xcyc=None):
         vertices.append((i, verts[i, 0], verts[i, 1]))
     cell2d = []
     for i in range(ncpl):
-        cell2d.append(
-            [i, xcyc[i, 0], xcyc[i, 1], len(iverts[i])]
-            + [iv for iv in iverts[i]]
-        )
+        cell2d.append([i, xcyc[i, 0], xcyc[i, 1], len(iverts[i])] + list(iverts[i]))
     gridprops = {}
     gridprops["ncpl"] = ncpl
     gridprops["nvert"] = nvert
@@ -390,6 +418,10 @@ def gridlist_to_disv_gridprops(gridlist):
     be numbered according to consecutive numbering of active cells in the
     grid list.
 
+    This function is deprecated in 3.8 and will be removed in 3.9.  Use the
+    functionality in flopy.utils.cvfdutil.Lgr() to create a DISV mesh for a
+    nested grid.
+
     Parameters
     ----------
     gridlist : list
@@ -403,6 +435,13 @@ def gridlist_to_disv_gridprops(gridlist):
         modflow6 disv package.
 
     """
+    warnings.warn(
+        "the gridlist_to_disv_gridprops function is deprecated and will be "
+        "removed in version 3.9. Use flopy.utils.cvfdutil.Lgr() instead, which "
+        "allows a nested grid to be created and exported to a DISV mesh.",
+        PendingDeprecationWarning,
+    )
+
     verts, iverts = gridlist_to_verts(gridlist)
     gridprops = get_disv_gridprops(verts, iverts)
     return gridprops

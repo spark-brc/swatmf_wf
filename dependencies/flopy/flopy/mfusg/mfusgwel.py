@@ -3,10 +3,6 @@ Mfusgwel module.
 
 Contains the MfUsgWel class. Note that the user can access
 the MfUsgWel class as `flopy.mfusg.MfUsgWel`.
-
-Additional information for this MODFLOW package can be found at the `Online
-MODFLOW Guide
-<https://water.usgs.gov/ogw/modflow/MODFLOW-2005-Guide/wel.html>`_.
 """
 
 from ..modflow.mfwel import ModflowWel
@@ -229,9 +225,7 @@ class MfUsgWel(ModflowWel):
         if dtype is not None:
             self.dtype = dtype
         else:
-            self.dtype = self.get_default_dtype(
-                structured=self.parent.structured
-            )
+            self.dtype = self.get_default_dtype(structured=self.parent.structured)
 
         # determine if any aux variables in dtype
         options = self._check_for_aux(options)
@@ -239,9 +233,7 @@ class MfUsgWel(ModflowWel):
         self.options = options
 
         # initialize MfList
-        self.stress_period_data = MfList(
-            self, stress_period_data, binary=binary
-        )
+        self.stress_period_data = MfList(self, stress_period_data, binary=binary)
 
         if add_package:
             self.parent.add_package(self)
@@ -249,9 +241,10 @@ class MfUsgWel(ModflowWel):
     def _check_for_aux(self, options, cln=False):
         """Check dtype for auxiliary variables, and add to options.
 
-        Parameters:
+        Parameters
         ----------
-            options: (list) package options
+        options: list
+            package options
 
         Returns
         -------
@@ -278,9 +271,10 @@ class MfUsgWel(ModflowWel):
     def write_file(self, f=None):
         """Write the package file.
 
-        Parameters:
+        Parameters
         ----------
-            f: (str) optional file name
+        f : str, optional
+            file name
 
         Returns
         -------
@@ -295,9 +289,7 @@ class MfUsgWel(ModflowWel):
 
         f_wel.write(f"{self.heading}\n")
 
-        mxact = (
-            self.stress_period_data.mxact + self.cln_stress_period_data.mxact
-        )
+        mxact = self.stress_period_data.mxact + self.cln_stress_period_data.mxact
 
         line = f" {mxact:9d} {self.ipakcb:9d} "
         if self.options is None:

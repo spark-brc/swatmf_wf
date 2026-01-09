@@ -42,9 +42,7 @@ class PlotMapView:
 
     """
 
-    def __init__(
-        self, model=None, modelgrid=None, ax=None, layer=0, extent=None
-    ):
+    def __init__(self, model=None, modelgrid=None, ax=None, layer=0, extent=None):
         self.model = model
         self.layer = layer
         self.mg = None
@@ -149,9 +147,7 @@ class PlotMapView:
             return
 
         if not isinstance(polygons[0], Path):
-            collection = ax.pcolormesh(
-                self.mg.xvertices, self.mg.yvertices, plotarray
-            )
+            collection = ax.pcolormesh(self.mg.xvertices, self.mg.yvertices, plotarray)
 
         else:
             plotarray = plotarray.ravel()
@@ -201,7 +197,7 @@ class PlotMapView:
         contour_set : matplotlib.pyplot.contour
 
         """
-        import matplotlib.tri as tri
+        from matplotlib import tri
 
         # coerce array to ndarray of floats
         a = np.copy(a)
@@ -450,6 +446,7 @@ class PlotMapView:
         kper=0,
         color=None,
         plotAll=False,
+        boundname=None,
         **kwargs,
     ):
         """
@@ -500,21 +497,18 @@ class PlotMapView:
 
             idx = np.array([])
             for pp in p:
-                if pp.package_type in ("lak", "sfr", "maw", "uzf"):
+                if pp.package_type in {"lak", "sfr", "maw", "uzf"}:
                     t = plotutil.advanced_package_bc_helper(pp, self.mg, kper)
                 else:
                     try:
                         mflist = pp.stress_period_data.array[kper]
                     except Exception as e:
-                        raise Exception(
-                            f"Not a list-style boundary package: {e!s}"
-                        )
+                        raise Exception(f"Not a list-style boundary package: {e!s}")
                     if mflist is None:
                         return
-
-                    t = np.array(
-                        [list(i) for i in mflist["cellid"]], dtype=int
-                    ).T
+                    if boundname is not None:
+                        mflist = mflist[mflist["boundname"] == boundname]
+                    t = np.array([list(i) for i in mflist["cellid"]], dtype=int).T
 
                 if len(idx) == 0:
                     idx = np.copy(t)
@@ -523,15 +517,13 @@ class PlotMapView:
 
         else:
             # modflow-2005 structured and unstructured grid
-            if p.package_type in ("uzf", "lak"):
+            if p.package_type in {"uzf", "lak"}:
                 idx = plotutil.advanced_package_bc_helper(p, self.mg, kper)
             else:
                 try:
                     mflist = p.stress_period_data[kper]
                 except Exception as e:
-                    raise Exception(
-                        f"Not a list-style boundary package: {e!s}"
-                    )
+                    raise Exception(f"Not a list-style boundary package: {e!s}")
                 if mflist is None:
                     return
                 if len(self.mg.shape) == 3:
@@ -582,7 +574,7 @@ class PlotMapView:
 
         Parameters
         ----------
-        shp : str, os.PathLike or pyshp shapefile object
+        shp : str, PathLike or pyshp shapefile object
             Path of the shapefile to plot
 
         kwargs : dictionary
@@ -623,6 +615,65 @@ class PlotMapView:
         patch_collection = plotutil.plot_shapefile(obj, ax, **kwargs)
         ax = self._set_axes_limits(ax)
         return patch_collection
+
+    def plot_centers(
+        self, a=None, s=None, masked_values=None, inactive=False, **kwargs
+    ):
+        """
+        Method to plot cell centers on cross-section using matplotlib
+        scatter. This method accepts an optional data array(s) for
+        coloring and scaling the cell centers. Cell centers in inactive
+        nodes are not plotted by default
+
+        Parameters
+        ----------
+        a : None, np.ndarray
+            optional numpy nd.array of size modelgrid.nnodes
+        s : None, float, numpy array
+            optional point size parameter
+        masked_values : None, iterable
+            optional list, tuple, or np array of array (a) values to mask
+        inactive : bool
+            boolean flag to include inactive cell centers in the plot.
+            Default is False
+        **kwargs :
+            matplotlib ax.scatter() keyword arguments
+
+        Returns
+        -------
+            matplotlib ax.scatter() object
+        """
+        ax = kwargs.pop("ax", self.ax)
+
+        xcenters = self.mg.get_xcellcenters_for_layer(self.layer).ravel()
+        ycenters = self.mg.get_ycellcenters_for_layer(self.layer).ravel()
+        idomain = self.mg.get_plottable_layer_array(self.mg.idomain, self.layer).ravel()
+
+        active_ixs = list(range(len(xcenters)))
+        if not inactive:
+            active_ixs = np.where(idomain != 0)[0]
+
+        xcenters = xcenters[active_ixs]
+        ycenters = ycenters[active_ixs]
+
+        if a is not None:
+            a = self.mg.get_plottable_layer_array(a).ravel()
+
+            if masked_values is not None:
+                self._masked_values.extend(list(masked_values))
+
+            for mval in self._masked_values:
+                a[a == mval] = np.nan
+
+            a = a[active_ixs]
+
+        if s is not None:
+            if not isinstance(s, (int, float)):
+                s = self.mg.get_plottable_layer_array(s).ravel()
+                s = s[active_ixs]
+
+        scat = ax.scatter(xcenters, ycenters, c=a, s=s, **kwargs)
+        return scat
 
     def plot_vector(
         self,
@@ -797,7 +848,7 @@ class PlotMapView:
                 else:
                     kon = self.layer
         else:
-            kon = self.layer
+            kon = -1
 
         # configure plot settings
         marker = kwargs.pop("marker", None)
@@ -983,11 +1034,7 @@ class PlotMapView:
 
         # transform data!
         x0r, y0r = geometry.transform(
-            tep[xp],
-            tep[yp],
-            self.mg.xoffset,
-            self.mg.yoffset,
-            self.mg.angrot_radians,
+            tep[xp], tep[yp], self.mg.xoffset, self.mg.yoffset, self.mg.angrot_radians
         )
         # build array to plot
         arr = np.vstack((x0r, y0r)).T

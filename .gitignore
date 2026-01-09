@@ -32,6 +32,7 @@ SWAT-MODFLOW/swatmf_out_MF_head_yearly
 SWAT-MODFLOW/mff_test.list
 SWAT-MODFLOW/output.hru
 SWAT-MODFLOW/output.mgt
+temp
 
 # 
 calibration

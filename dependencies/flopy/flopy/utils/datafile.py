@@ -4,7 +4,17 @@ abstract classes that should not be directly accessed.
 
 """
 
-import os
+# in LayerFile, the recordarray attribute begins its life as
+# a list, which is appended to in subclasses' build_index(),
+# then finally becomes an array, after which it's accessed
+# in this file by column name. this probably deserves some
+# attention, but in the meantime, disable the pylint rule
+# to appease codacy.
+#
+# pylint: disable=invalid-sequence-index
+
+import warnings
+from os import PathLike
 from pathlib import Path
 from typing import Union
 
@@ -42,7 +52,7 @@ class Header:
                         ("kper", "i4"),
                         ("pertim", floattype),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("ncol", "i4"),
                         ("nrow", "i4"),
                         ("ilay", "i4"),
@@ -55,7 +65,7 @@ class Header:
                         ("kper", "i4"),
                         ("pertim", floattype),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("ncol", "i4"),
                         ("nrow", "i4"),
                         ("ilay", "i4"),
@@ -68,7 +78,7 @@ class Header:
                         ("kstp", "i4"),
                         ("kper", "i4"),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("ncol", "i4"),
                         ("nrow", "i4"),
                         ("ilay", "i4"),
@@ -81,7 +91,7 @@ class Header:
                         ("kper", "i4"),
                         ("pertim", floattype),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("m1", "i4"),
                         ("m2", "i4"),
                         ("m3", "i4"),
@@ -94,7 +104,7 @@ class Header:
                         ("kper", "i4"),
                         ("pertim", floattype),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("m1", "i4"),
                         ("m2", "i4"),
                         ("m3", "i4"),
@@ -107,7 +117,7 @@ class Header:
                         ("kper", "i4"),
                         ("pertim", floattype),
                         ("totim", floattype),
-                        ("text", "a16"),
+                        ("text", "S16"),
                         ("m1", "i4"),
                         ("m2", "i4"),
                         ("m3", "i4"),
@@ -119,8 +129,9 @@ class Header:
             self.dtype = None
             self.header = None
             print(
-                "Specified {} type is not available. "
-                "Available types are:".format(self.header_type)
+                "Specified {} type is not available. Available types are:".format(
+                    self.header_type
+                )
             )
             for idx, t in enumerate(self.header_types):
                 print(f"  {idx + 1} {t}")
@@ -155,9 +166,7 @@ class LayerFile:
 
     """
 
-    def __init__(
-        self, filename: Union[str, os.PathLike], precision, verbose, kwargs
-    ):
+    def __init__(self, filename: Union[str, PathLike], precision, verbose, **kwargs):
         from ..discretization.structuredgrid import StructuredGrid
 
         self.filename = Path(filename).expanduser().absolute()
@@ -212,18 +221,28 @@ class LayerFile:
         if self.mg is None:
             self.mg = StructuredGrid(
                 delc=np.ones((self.nrow,)),
-                delr=np.ones(
-                    self.ncol,
-                ),
+                delr=np.ones(self.ncol),
                 nlay=self.nlay,
                 xoff=0.0,
                 yoff=0.0,
                 angrot=0.0,
             )
 
+    def __len__(self):
+        """
+        Return the number of records (headers) in the file.
+        """
+        return len(self.recordarray)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
     def to_shapefile(
         self,
-        filename: Union[str, os.PathLike],
+        filename: Union[str, PathLike],
         kstpkper=None,
         totim=None,
         mflay=None,
@@ -252,7 +271,7 @@ class LayerFile:
             Whether to print verbose output
 
         Returns
-        ----------
+        -------
         None
 
         See Also
@@ -270,9 +289,7 @@ class LayerFile:
         """
 
         plotarray = np.atleast_3d(
-            self.get_data(
-                kstpkper=kstpkper, totim=totim, mflay=mflay
-            ).transpose()
+            self.get_data(kstpkper=kstpkper, totim=totim, mflay=mflay).transpose()
         ).transpose()
         if mflay is not None:
             attrib_dict = {f"{attrib_name}{mflay}": plotarray[0, :, :]}
@@ -341,7 +358,7 @@ class LayerFile:
                 if filename_base is not None. (default is 'png')
 
         Returns
-        ----------
+        -------
         None
 
         See Also
@@ -381,15 +398,11 @@ class LayerFile:
             else:
                 i0 = 0
                 i1 = self.nlay
-            filenames = [
-                f"{filename_base}_Layer{k + 1}.{fext}" for k in range(i0, i1)
-            ]
+            filenames = [f"{filename_base}_Layer{k + 1}.{fext}" for k in range(i0, i1)]
 
         # make sure we have a (lay,row,col) shape plotarray
         plotarray = np.atleast_3d(
-            self.get_data(
-                kstpkper=kstpkper, totim=totim, mflay=mflay
-            ).transpose()
+            self.get_data(kstpkper=kstpkper, totim=totim, mflay=mflay).transpose()
         ).transpose()
 
         from ..plot.plotutil import PlotUtilities
@@ -409,7 +422,7 @@ class LayerFile:
         Build the recordarray and iposarray, which maps the header information
         to the position in the formatted file.
         """
-        raise Exception(
+        raise NotImplementedError(
             "Abstract method _build_index called in LayerFile.  "
             "This method needs to be overridden."
         )
@@ -417,17 +430,30 @@ class LayerFile:
     def list_records(self):
         """
         Print a list of all of the records in the file
-        obj.list_records()
 
+        .. deprecated:: 3.8.0
+           Use :attr:`headers` instead.
         """
+        warnings.warn(
+            "list_records() is deprecated; use headers instead.",
+            DeprecationWarning,
+        )
         for header in self.recordarray:
             print(header)
         return
 
     def get_nrecords(self):
-        if isinstance(self.recordarray, np.recarray):
-            return self.recordarray.shape[0]
-        return 0
+        """
+        Return the number of records (headers) in the file.
+
+        .. deprecated:: 3.8.0
+           Use :meth:`len` instead.
+        """
+        warnings.warn(
+            "get_nrecords is deprecated; use len(obj) instead.",
+            DeprecationWarning,
+        )
+        return len(self)
 
     def _get_data_array(self, totim=0):
         """
@@ -437,7 +463,7 @@ class LayerFile:
         """
 
         if totim >= 0.0:
-            keyindices = np.where(self.recordarray["totim"] == totim)[0]
+            keyindices = np.asarray(self.recordarray["totim"] == totim).nonzero()[0]
             if len(keyindices) == 0:
                 msg = f"totim value ({totim}) not found in file..."
                 raise Exception(msg)
@@ -468,7 +494,7 @@ class LayerFile:
         Get a list of unique times in the file
 
         Returns
-        ----------
+        -------
         out : list of floats
             List contains unique simulation times (totim) in binary file.
 
@@ -505,7 +531,7 @@ class LayerFile:
            all layers will be included. (Default is None.)
 
         Returns
-        ----------
+        -------
         data : numpy array
             Array has size (nlay, nrow, ncol) if mflay is None or it has size
             (nrow, ncol) if mlay is specified.
@@ -519,14 +545,12 @@ class LayerFile:
         if kstpkper is not None:
             kstp1 = kstpkper[0] + 1
             kper1 = kstpkper[1] + 1
-            idx = np.where(
+            idx = np.asarray(
                 (self.recordarray["kstp"] == kstp1)
                 & (self.recordarray["kper"] == kper1)
-            )
+            ).nonzero()
             if idx[0].shape[0] == 0:
-                raise Exception(
-                    f"get_data() error: kstpkper not found:{kstpkper}"
-                )
+                raise Exception(f"get_data() error: kstpkper not found:{kstpkper}")
             totim1 = self.recordarray[idx]["totim"][0]
         elif totim is not None:
             totim1 = totim
@@ -538,8 +562,10 @@ class LayerFile:
         data = self._get_data_array(totim1)
         if mflay is None:
             return data
+        elif isinstance(data, list):  # unstructured model, list form
+            return data[mflay]
         else:
-            return data[mflay, :, :]
+            return data[mflay, :, :]  # structured model, np.array form
 
     def get_alldata(self, mflay=None, nodata=-9999):
         """
@@ -556,7 +582,7 @@ class LayerFile:
            nodata value will be assigned np.nan.
 
         Returns
-        ----------
+        -------
         data : numpy array
             Array has size (ntimes, nlay, nrow, ncol) if mflay is None or it
             has size (ntimes, nrow, ncol) if mlay is specified.
@@ -584,7 +610,7 @@ class LayerFile:
         Read data from file
 
         """
-        raise Exception(
+        raise NotImplementedError(
             "Abstract method _read_data called in LayerFile.  "
             "This method needs to be overridden."
         )
@@ -609,8 +635,9 @@ class LayerFile:
                 fail = True
             if fail:
                 raise Exception(
-                    "Invalid cell index. Cell {} not within model grid: "
-                    "{}".format((k, i, j), (self.nlay, self.nrow, self.ncol))
+                    "Invalid cell index. Cell {} not within model grid: {}".format(
+                        (k, i, j), (self.nlay, self.nrow, self.ncol)
+                    )
                 )
         return kijlist
 

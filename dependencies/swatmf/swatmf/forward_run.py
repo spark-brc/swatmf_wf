@@ -66,8 +66,11 @@ def extract_stf_results(subs, sim_start, warmup, cal_start, cal_end):
 def extract_gw_level_results(grids, sim_start, cal_end):
     des = "simulation successfully completed | extracting depth to water values"
     time_stamp(des)
-    swatmf_pst_utils.extract_depth_to_water(grids, sim_start, cal_end)
-    
+    if time_step == 'day':
+        swatmf_pst_utils.extract_depth_to_water(grids, sim_start, cal_end)
+    elif time_step == 'month':
+        swatmf_pst_utils.extract_depth_to_water(grids, sim_start, cal_end, time_step="month")
+
 def extract_avg_depth_to_water(
                 avg_grids, start_day, 
                 avg_stdate, avg_eddate,

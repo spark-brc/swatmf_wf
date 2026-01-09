@@ -29,7 +29,7 @@ FFMT = lambda x: "{0:<20.10E} ".format(float(x))
 
 def str_con(item):
     if len(item) == 0:
-        return np.NaN
+        return np.nan
     return item.lower().strip()
 
 pst_config = {}
@@ -916,7 +916,7 @@ def try_process_output_pst(pst):
                     ins_file, str(e)
                 )
             )
-            df = _try_run_inschek(ins_file, out_file)
+            #df = _try_run_inschek(ins_file, out_file)
         if df is not None:
             pst.observation_data.loc[df.index, "obsval"] = df.obsval
 
@@ -981,7 +981,7 @@ def get_phi_comps_from_recfile(recfile):
 
 
 def res_from_obseravtion_data(observation_data):
-    """create a PEST-style residual dataframe filled with np.NaN for
+    """create a PEST-style residual dataframe filled with np.nan for
     missing information
 
     Args:
@@ -1000,8 +1000,8 @@ def res_from_obseravtion_data(observation_data):
     res_df.loc[:, "name"] = res_df.pop("obsnme")
     res_df.loc[:, "measured"] = res_df.pop("obsval")
     res_df.loc[:, "group"] = res_df.pop("obgnme")
-    res_df.loc[:, "modelled"] = np.NaN
-    res_df.loc[:, "residual"] = np.NaN
+    res_df.loc[:, "modelled"] = np.nan
+    res_df.loc[:, "residual"] = np.nan
     return res_df
 
 

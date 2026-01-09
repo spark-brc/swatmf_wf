@@ -2,8 +2,8 @@
 Utilities for parsing particle tracking output files.
 """
 
-import os
 from abc import ABC, abstractmethod
+from os import PathLike
 from pathlib import Path
 from typing import Union
 
@@ -49,7 +49,7 @@ class ParticleTrackFile(ABC):
 
     def __init__(
         self,
-        filename: Union[str, os.PathLike],
+        filename: Union[str, PathLike],
         verbose: bool = False,
     ):
         self.fname = Path(filename).expanduser().absolute()
@@ -60,7 +60,7 @@ class ParticleTrackFile(ABC):
         Get the maximum particle ID.
 
         Returns
-        ----------
+        -------
         out : int
             Maximum particle ID.
 
@@ -72,16 +72,14 @@ class ParticleTrackFile(ABC):
         Get the maximum tracking time.
 
         Returns
-        ----------
+        -------
         out : float
             Maximum tracking time.
 
         """
         return self._data["time"].max()
 
-    def get_data(
-        self, partid=0, totim=None, ge=True, minimal=False
-    ) -> np.recarray:
+    def get_data(self, partid=0, totim=None, ge=True, minimal=False) -> np.recarray:
         """
         Get a single particle track, optionally filtering by time.
 
@@ -99,23 +97,23 @@ class ParticleTrackFile(ABC):
             Whether to return only the minimal, canonical fields. Default is False.
 
         Returns
-        ----------
+        -------
         data : np.recarray
             Recarray with dtype ParticleTrackFile.outdtype
 
         """
         data = self._data[list(self.outdtype.names)] if minimal else self._data
         idx = (
-            np.where(data["particleid"] == partid)[0]
+            np.asarray(data["particleid"] == partid).nonzero()[0]
             if totim is None
             else (
-                np.where(
+                np.asarray(
                     (data["time"] >= totim) & (data["particleid"] == partid)
-                )[0]
+                ).nonzero()[0]
                 if ge
-                else np.where(
+                else np.asarray(
                     (data["time"] <= totim) & (data["particleid"] == partid)
-                )[0]
+                ).nonzero()[0]
             )
         )
 
@@ -136,26 +134,24 @@ class ParticleTrackFile(ABC):
             Whether to return only the minimal, canonical fields. Default is False.
 
         Returns
-        ----------
+        -------
         data : list of numpy record arrays
             List of recarrays with dtype ParticleTrackFile.outdtype
 
         """
-        nids = np.unique(self._data["particleid"]).size
+        nids = np.unique(self._data["particleid"])
         data = self._data[list(self.outdtype.names)] if minimal else self._data
         if totim is not None:
             idx = (
-                np.where(data["time"] >= totim)[0]
+                np.asarray(data["time"] >= totim).nonzero()[0]
                 if ge
-                else np.where(data["time"] <= totim)[0]
+                else np.asarray(data["time"] <= totim).nonzero()[0]
             )
             if len(idx) > 0:
                 data = data[idx]
-        return [data[data["particleid"] == i] for i in range(nids)]
+        return [data[data["particleid"] == i] for i in nids]
 
-    def get_destination_data(
-        self, dest_cells, to_recarray=True
-    ) -> np.recarray:
+    def get_destination_data(self, dest_cells, to_recarray=True) -> np.recarray:
         """
         Get data for set of destination cells.
 
@@ -291,11 +287,11 @@ class ParticleTrackFile(ABC):
                 if "particlegroup" in names:
                     t.append(ra.particlegroup[0])
                 t.append(ra.time.max())
+                if "k" in names:
+                    t.append(ra.k[loc_inds])
                 if "node" in names:
                     t.append(ra.node[loc_inds])
                 else:
-                    if "k" in names:
-                        t.append(ra.k[loc_inds])
                     if "i" in names:
                         t.append(ra.i[loc_inds])
                     if "j" in names:
@@ -318,9 +314,7 @@ class ParticleTrackFile(ABC):
                     x, y = geometry.transform(ra.x, ra.y, 0, 0, 0)
                 z = ra.z
                 geoms += [
-                    LineString(
-                        [(x[i - 1], y[i - 1], z[i - 1]), (x[i], y[i], z[i])]
-                    )
+                    LineString([(x[i - 1], y[i - 1], z[i - 1]), (x[i], y[i], z[i])])
                     for i in np.arange(1, (len(ra)))
                 ]
                 sdata += ra[1:].tolist()

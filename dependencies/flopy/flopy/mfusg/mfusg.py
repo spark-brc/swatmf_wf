@@ -1,7 +1,8 @@
 """Mfusg module."""
 
-import os
+import os.path
 from inspect import getfullargspec
+from os import PathLike, curdir
 from typing import Union
 
 import flopy
@@ -16,7 +17,7 @@ class MfUsg(Modflow):
 
     Parameters
     ----------
-    modelname : str or PathLike, default "modflowusgtest".
+    modelname : str or PathLike, default "modflowusgtest"
         Name of model.  This string will be used to name the MODFLOW input
         that are created with write_model.
     namefile_ext : str, default "nam"
@@ -27,9 +28,8 @@ class MfUsg(Modflow):
         Specify if model grid is structured (default) or unstructured.
     listunit : int, default 2
         Unit number for the list file.
-    model_ws : str, default "."
+    model_ws : str, default "." (curdir)
         Model workspace.  Directory name to create model data sets.
-        Default is the present working directory.
     external_path : str, optional
         Location for external files.
     verbose : bool, default False
@@ -56,65 +56,56 @@ class MfUsg(Modflow):
 
     def __init__(
         self,
-        modelname="modflowusgtest",
+        modelname="mfusgtest",
+        namefile_ext="nam",
+        version="mfusg",
+        exe_name: Union[str, PathLike] = "mfusg",
         structured=True,
-        model_ws: Union[str, os.PathLike] = os.curdir,
+        listunit=2,
+        model_ws: Union[str, PathLike] = curdir,
+        external_path=None,
+        verbose=False,
         **kwargs,
     ):
-        """Constructs the MfUsg object. Overrides the parent Modflow object."""
-        valid_args_defaults = {
-            "namefile_ext": "nam",
-            "exe_name": "mfusg",
-            "listunit": 2,
-            "external_path": None,
-            "verbose": False,
-        }
-
-        for arg, default_value in valid_args_defaults.items():
-            setattr(self, arg, kwargs.pop(arg, default_value))
-
-        # remove "version" from kwarg if inadvertently provided
-        try:
-            kwargs.pop("version")
-        except KeyError:
-            pass
-
         super().__init__(
-            modelname,
-            self.namefile_ext,
-            version="mfusg",
-            exe_name=self.exe_name,
+            modelname=modelname,
+            namefile_ext=namefile_ext,
+            version=version,
+            exe_name=exe_name,
             structured=structured,
-            listunit=self.listunit,
+            listunit=listunit,
             model_ws=model_ws,
-            external_path=self.external_path,
-            verbose=self.verbose,
+            external_path=external_path,
+            verbose=verbose,
             **kwargs,
         )
+
+        self.itrnsp = 0  # transport simulation flag
+        self.mcomp = 0  # number of chemical components
+        self.iheat = 0  # flag for heat transport
+        self.idpf = 0  # flag for dual porosity flow
+        self.icln = 0  # flag for CLN package
+
         # Create a dictionary to map package with package object.
         # This is used for loading models.
         self.mfnam_packages = {
             "zone": flopy.modflow.ModflowZon,
             "mult": flopy.modflow.ModflowMlt,
             "pval": flopy.modflow.ModflowPval,
-            "bas6": flopy.modflow.ModflowBas,
-            "dis": flopy.modflow.ModflowDis,
+            "bas6": flopy.mfusg.MfUsgBas,
+            "dis": flopy.mfusg.MfUsgDis,
             "hfb6": flopy.modflow.ModflowHfb,
-            "chd": flopy.modflow.ModflowChd,
             "fhb": flopy.modflow.ModflowFhb,
             "drn": flopy.modflow.ModflowDrn,
             "drt": flopy.modflow.ModflowDrt,
-            "rch": flopy.modflow.ModflowRch,
-            "evt": flopy.modflow.ModflowEvt,
             "ghb": flopy.modflow.ModflowGhb,
             "riv": flopy.modflow.ModflowRiv,
             "str": flopy.modflow.ModflowStr,
             "sfr": flopy.modflow.ModflowSfr2,
-            "lak": flopy.modflow.ModflowLak,
             "gage": flopy.modflow.ModflowGage,
-            "oc": flopy.modflow.ModflowOc,
             "sub": flopy.modflow.ModflowSub,
             "swt": flopy.modflow.ModflowSwt,
+            "chd": flopy.modflow.ModflowChd,
             "disu": flopy.mfusg.MfUsgDisU,
             "sms": flopy.mfusg.MfUsgSms,
             "wel": flopy.mfusg.MfUsgWel,
@@ -122,6 +113,16 @@ class MfUsg(Modflow):
             "lpf": flopy.mfusg.MfUsgLpf,
             "cln": flopy.mfusg.MfUsgCln,
             "gnc": flopy.mfusg.MfUsgGnc,
+            "bct": flopy.mfusg.MfUsgBct,
+            "pcb": flopy.mfusg.MfUsgPcb,
+            "ddf": flopy.mfusg.MfUsgDdf,
+            "mdt": flopy.mfusg.MfUsgMdt,
+            "dpf": flopy.mfusg.MfUsgDpf,
+            "dpt": flopy.mfusg.MfUsgDpt,
+            "rch": flopy.mfusg.MfUsgRch,
+            "oc": flopy.mfusg.MfUsgOc,
+            "lak": flopy.mfusg.MfUsgLak,
+            "evt": flopy.mfusg.MfUsgEvt,
         }
 
     def __repr__(self):
@@ -149,9 +150,9 @@ class MfUsg(Modflow):
         cls,
         f: str,
         version="mfusg",
-        exe_name: Union[str, os.PathLike] = "mfusg",
+        exe_name: Union[str, PathLike] = "mfusg",
         verbose=False,
-        model_ws: Union[str, os.PathLike] = os.curdir,
+        model_ws: Union[str, PathLike] = curdir,
         load_only=None,
         forgive=False,
         check=True,
@@ -168,7 +169,7 @@ class MfUsg(Modflow):
             MODFLOW executable name.
         verbose : bool, default False
             Show messages that can be useful for debugging.
-        model_ws : str or PathLike, default "."
+        model_ws : str or PathLike, default "." (curdir)
             Model workspace path. Default is the current directory.
         load_only : list, str or None
             List of case insensitive packages to load, e.g. ["bas6", "lpf"].
@@ -196,9 +197,7 @@ class MfUsg(Modflow):
 
         # similar to modflow command: if file does not exist , try file.nam
         namefile_path = os.path.join(model_ws, f)
-        if not os.path.isfile(namefile_path) and os.path.isfile(
-            f"{namefile_path}.nam"
-        ):
+        if not os.path.isfile(namefile_path) and os.path.isfile(f"{namefile_path}.nam"):
             namefile_path += ".nam"
         if not os.path.isfile(namefile_path):
             raise OSError(f"cannot find name file: {namefile_path}")
@@ -209,9 +208,7 @@ class MfUsg(Modflow):
         if verbose:
             print(f"\nCreating new model with name: {modelname}\n{50 * '-'}\n")
 
-        attribs = mfreadnam.attribs_from_namfile_header(
-            os.path.join(model_ws, f)
-        )
+        attribs = mfreadnam.attribs_from_namfile_header(os.path.join(model_ws, f))
 
         model = cls(
             modelname,
@@ -238,6 +235,12 @@ class MfUsg(Modflow):
         if "DISU" in ext_pkg_d:
             model.structured = False
 
+        if "DPF" in ext_pkg_d:
+            model.idpf = 1
+
+        if "CLN" in ext_pkg_d:
+            model.icln = 1
+
         # reset unit number for list file
         if "LIST" in ext_pkg_d:
             unitnumber = ext_pkg_d["LIST"]
@@ -259,9 +262,6 @@ class MfUsg(Modflow):
         if verbose:
             print(f"ModflowBas6 free format:{model.free_format_input}\n")
 
-        # set mfpar / pval
-        cls._set_mfpar_pval(model, ext_unit_dict, ext_pkg_d)
-
         files_successfully_loaded, files_not_loaded = cls._load_packages(
             model, ext_unit_dict, ext_pkg_d, load_only, forgive
         )
@@ -270,9 +270,7 @@ class MfUsg(Modflow):
         cls._set_output_external(model, ext_unit_dict)
 
         # send messages re: success/failure of loading
-        cls._send_load_messages(
-            model, files_successfully_loaded, files_not_loaded
-        )
+        cls._send_load_messages(model, files_successfully_loaded, files_not_loaded)
 
         if check:
             model.check(f=f"{model.name}.chk", verbose=model.verbose, level=0)
@@ -281,9 +279,7 @@ class MfUsg(Modflow):
         return model
 
     @classmethod
-    def _load_packages(
-        cls, model, ext_unit_dict, ext_pkg_d, load_only, forgive
-    ):
+    def _load_packages(cls, model, ext_unit_dict, ext_pkg_d, load_only, forgive):
         """
         Method to load packages into the MODFLOW-USG Model Class.
         For internal class use - should not be called by the user.
@@ -307,7 +303,7 @@ class MfUsg(Modflow):
             Option to raise exceptions on package load failure.
 
         Returns
-        ----------
+        -------
         files_successfully_loaded : list of loaded files
         files_not_loaded : list of files that were not loaded
         """
@@ -333,22 +329,39 @@ class MfUsg(Modflow):
 
         dis.start_datetime = model.start_datetime
 
+        # BCT has to be loaded before other transport packages for MFUSG-TRANSPORT
+        bct_key = ext_pkg_d.get("BCT")
+        if bct_key is not None:
+            bctnamdata = ext_unit_dict[bct_key]
+            bct = bctnamdata.package.load(
+                bctnamdata.filehandle,
+                model,
+                ext_unit_dict=ext_unit_dict,
+                check=False,
+            )
+            files_successfully_loaded.append(bctnamdata.filename)
+            if model.verbose:
+                print(f"   {bct.name[0]:4s} package load...success")
+            ext_unit_dict.pop(bct_key).filehandle.close()
+
+        # set mfpar / pval
+        cls._set_mfpar_pval(model, ext_unit_dict, ext_pkg_d)
+
         load_only = cls._prepare_load_only(load_only, ext_pkg_d)
 
         # try loading packages in ext_unit_dict
         for key, item in ext_unit_dict.items():
             if item.package is not None:
-                (
-                    files_successfully_loaded,
-                    files_not_loaded,
-                ) = cls._load_ext_unit_dict_paks(
-                    model,
-                    ext_unit_dict,
-                    load_only,
-                    item,
-                    forgive,
-                    files_successfully_loaded,
-                    files_not_loaded,
+                (files_successfully_loaded, files_not_loaded) = (
+                    cls._load_ext_unit_dict_paks(
+                        model,
+                        ext_unit_dict,
+                        load_only,
+                        item,
+                        forgive,
+                        files_successfully_loaded,
+                        files_not_loaded,
+                    )
                 )
             elif "data" not in item.filetype.lower():
                 files_not_loaded.append(item.filename)
@@ -435,9 +448,7 @@ class MfUsg(Modflow):
             if key not in model.external_units:
                 model.external_fnames.append(item.filename)
                 model.external_units.append(key)
-                model.external_binflag.append(
-                    "binary" in item.filetype.lower()
-                )
+                model.external_binflag.append("binary" in item.filetype.lower())
                 model.external_output.append(False)
 
     @staticmethod
@@ -504,9 +515,7 @@ class MfUsg(Modflow):
                     )
 
     @staticmethod
-    def _send_load_messages(
-        model, files_successfully_loaded, files_not_loaded
-    ):
+    def _send_load_messages(model, files_successfully_loaded, files_not_loaded):
         """Send messages re: success/failure of loading."""
         # write message indicating packages that were successfully loaded
         if model.verbose:
@@ -538,10 +547,10 @@ def fmt_string(array):
     fmts = []
     for field in array.dtype.descr:
         vtype = field[1][1].lower()
-        if vtype in ("i", "b"):
+        if vtype in {"i", "b"}:
             fmts.append("%10d")
         elif vtype == "f":
-            fmts.append("%14.6g")
+            fmts.append("%10.2e")
         elif vtype == "o":
             fmts.append("%10s")
         elif vtype == "s":
@@ -552,7 +561,5 @@ def fmt_string(array):
             )
             raise TypeError(msg)
         else:
-            raise TypeError(
-                "mfusg.fmt_string error: unknown vtype in" f"field: {field}"
-            )
+            raise TypeError(f"mfusg.fmt_string error: unknown vtype in field: {field}")
     return "".join(fmts)

@@ -1,5 +1,6 @@
 import copy
 import os
+from os import PathLike
 from typing import Union
 
 import numpy as np
@@ -56,7 +57,7 @@ class UnstructuredGrid(Grid):
         The value can be anything accepted by
         :meth:`pyproj.CRS.from_user_input() <pyproj.crs.CRS.from_user_input>`,
         such as an authority string (eg "EPSG:26916") or a WKT string.
-    prjfile : str or pathlike, optional if `crs` is specified
+    prjfile : str or PathLike, optional if `crs` is specified
         ESRI-style projection file with well-known text defining the CRS
         for the model grid (must be projected; geographic CRS are not supported).
         beneath the top layer.
@@ -78,7 +79,7 @@ class UnstructuredGrid(Grid):
         .. deprecated:: 3.5
            The following keyword options will be removed for FloPy 3.6:
 
-             - ``prj`` (str or pathlike): use ``prjfile`` instead.
+             - ``prj`` (str or PathLike): use ``prjfile`` instead.
              - ``epsg`` (int): use ``crs`` instead.
              - ``proj4`` (str): use ``crs`` instead.
 
@@ -131,6 +132,7 @@ class UnstructuredGrid(Grid):
         angrot=0.0,
         iac=None,
         ja=None,
+        cell2d=None,
         **kwargs,
     ):
         super().__init__(
@@ -146,6 +148,11 @@ class UnstructuredGrid(Grid):
             angrot=angrot,
             **kwargs,
         )
+        if cell2d is not None:
+            # modflow 6 DISU
+            xcenters = np.array([i[1] for i in cell2d])
+            ycenters = np.array([i[2] for i in cell2d])
+            iverts = [list(t)[4:] for t in cell2d]
 
         # if any of these are None, then the grid is not valid
         self._vertices = vertices
@@ -240,20 +247,41 @@ class UnstructuredGrid(Grid):
         return len(self._vertices)
 
     @property
+    def cell2d(self):
+        if self.is_valid:
+            ncenters = len(self._xc)
+            is_layered = False
+            if ncenters != self.nnodes and ncenters / self.nnodes % 0:
+                is_layered = True
+
+            ix_adj = 0
+            cell2d = []
+            for ix in range(self.nnodes):
+                if is_layered:
+                    if ix % self.ncpl[0] == 0 and ix != 0:
+                        ix_adj += self.ncpl[0]
+                iverts = self._iverts[ix - ix_adj]
+                c2drec = [
+                    ix,
+                    self._xc[ix - ix_adj],
+                    self._yc[ix - ix_adj],
+                    len(iverts),
+                ]
+                c2drec.extend(iverts)
+                cell2d.append(c2drec)
+            return cell2d
+
+    @property
     def iverts(self):
         if self._iverts is not None:
-            return [
-                [ivt for ivt in t if ivt is not None] for t in self._iverts
-            ]
+            return [[ivt for ivt in t if ivt is not None] for t in self._iverts]
 
     @property
     def verts(self):
         if self._vertices is None:
             return self._vertices
         else:
-            verts = np.array(
-                [list(t)[1:] for t in self._vertices], dtype=float
-            ).T
+            verts = np.array([list(t)[1:] for t in self._vertices], dtype=float).T
             x, y = transform(
                 verts[0],
                 verts[1],
@@ -547,8 +575,7 @@ class UnstructuredGrid(Grid):
                     self._polygons[ilay].append(p)
             else:
                 self._polygons = [
-                    Path(self.get_cell_vertices(nn))
-                    for nn in range(self.ncpl[0])
+                    Path(self.get_cell_vertices(nn)) for nn in range(self.ncpl[0])
                 ]
 
         return copy.copy(self._polygons)
@@ -566,6 +593,45 @@ class UnstructuredGrid(Grid):
         gdf = super().geo_dataframe(polys)
         return gdf
 
+    def neighbors(self, node=None, **kwargs):
+        """
+        Method to get nearest neighbors of a cell
+
+        Parameters
+        ----------
+        node : int
+            model grid node number
+
+        ** kwargs:
+            method : str
+                "iac" for specified connections from the DISU package
+                "rook" for shared edge neighbors
+                "queen" for shared vertex neighbors
+            reset : bool
+                flag to reset the neighbor calculation
+
+        Returns
+        -------
+            list or dict : list of cell node numbers or dict of all cells and
+                neighbors
+        """
+        method = kwargs.pop("method", None)
+        reset = kwargs.pop("reset", False)
+        if method == "iac":
+            if self._neighbors is None or reset:
+                neighbors = {}
+                idx0 = 0
+                for node, ia in enumerate(self._iac):
+                    idx1 = idx0 + ia
+                    neighbors[node] = list(self._ja[idx0 + 1 : idx1])
+                self._neighbors = neighbors
+            if node is not None:
+                return self._neighbors[node]
+            else:
+                return self._neighbors
+        else:
+            return super().neighbors(node=node, method=method, reset=reset)
+
     def convert_grid(self, factor):
         """
         Method to scale the model grid based on user supplied scale factors
@@ -580,10 +646,7 @@ class UnstructuredGrid(Grid):
         """
         if self.is_complete:
             return UnstructuredGrid(
-                vertices=[
-                    [i[0], i[1] * factor, i[2] * factor]
-                    for i in self._vertices
-                ],
+                vertices=[[i[0], i[1] * factor, i[2] * factor] for i in self._vertices],
                 iverts=self._iverts,
                 xcenters=self._xc * factor,
                 ycenters=self._yc * factor,
@@ -595,9 +658,65 @@ class UnstructuredGrid(Grid):
                 angrot=self.angrot,
             )
         else:
-            raise AssertionError(
-                "Grid is not complete and cannot be converted"
-            )
+            raise AssertionError("Grid is not complete and cannot be converted")
+
+    def clean_iverts(self, inplace=False):
+        """
+        Method to clean up duplicated iverts/verts when vertex information
+        is supplied in the unstructured grid.
+
+        Parameters:
+        ----------
+        inplace : bool
+            flag to clean and reset iverts in the current modelgrid object.
+            Default is False and returns a new modelgrid object
+
+        Returns
+        -------
+        UnstructuredGrid or None
+        """
+        if self.is_valid:
+            vset = {}
+            for rec in self._vertices:
+                vert = (rec[1], rec[2])
+                if vert in vset:
+                    vset[vert].add(rec[0])
+                else:
+                    vset[vert] = {rec[0]}
+
+            cnt = 0
+            ivert_remap = {}
+            vertices = []
+            for (xv, yv), iverts in vset.items():
+                for iv in iverts:
+                    ivert_remap[iv] = cnt
+                vertices.append((cnt, xv, yv))
+                cnt += 1
+
+            iverts = [[ivert_remap[v] for v in ivs] for ivs in self.iverts]
+            if inplace:
+                self._vertices = vertices
+                self._iverts = iverts
+                self._require_cache_updates()
+            else:
+                return UnstructuredGrid(
+                    vertices,
+                    iverts=iverts,
+                    xcenters=self._xc,
+                    ycenters=self._yc,
+                    top=self._top,
+                    botm=self._botm,
+                    idomain=self._idomain,
+                    lenuni=self.lenuni,
+                    ncpl=self._ncpl,
+                    crs=self._crs,
+                    prjfile=self._prjfile,
+                    xoff=self.xoffset,
+                    yoff=self.yoffset,
+                    angrot=self.angrot,
+                    iac=self._iac,
+                    ja=self._ja,
+                )
 
     def intersect(self, x, y, z=None, local=False, forgive=False):
         """
@@ -747,9 +866,7 @@ class UnstructuredGrid(Grid):
             xvertices = xvertxform
             yvertices = yvertxform
 
-        self._cache_dict[cache_index_cc] = CachedData(
-            [xcenters, ycenters, zcenters]
-        )
+        self._cache_dict[cache_index_cc] = CachedData([xcenters, ycenters, zcenters])
         self._cache_dict[cache_index_vert] = CachedData(
             [xvertices, yvertices, zvertices]
         )
@@ -1002,7 +1119,7 @@ class UnstructuredGrid(Grid):
             )
 
     @classmethod
-    def from_gridspec(cls, file_path: Union[str, os.PathLike]):
+    def from_gridspec(cls, file_path: Union[str, PathLike]):
         """
         Create an UnstructuredGrid from a grid specification file.
 
@@ -1019,9 +1136,7 @@ class UnstructuredGrid(Grid):
         with open(file_path) as file:
 
             def split_line():
-                return [
-                    head.upper() for head in file.readline().strip().split()
-                ]
+                return [head.upper() for head in file.readline().strip().split()]
 
             header = split_line()
             while header[0][0] == "#":
@@ -1061,16 +1176,12 @@ class UnstructuredGrid(Grid):
                 verts_provided = len(line) - 6
                 if verts_declared != verts_provided:
                     raise ValueError(
-                        f"Cell {nn} declares {verts_declared} vertices but provides {verts_provided}"
+                        f"Cell {nn} declares {verts_declared} vertices "
+                        f"but provides {verts_provided}"
                     )
 
-                verts = [
-                    int(vert) - 1 for vert in line[6 : 6 + verts_declared]
-                ]
-                elevs = [
-                    zverts[int(line[i]) - 1]
-                    for i in range(6, 6 + verts_declared)
-                ]
+                verts = [int(vert) - 1 for vert in line[6 : 6 + verts_declared]]
+                elevs = [zverts[int(line[i]) - 1] for i in range(6, 6 + verts_declared)]
 
                 xcenters.append(xc)
                 ycenters.append(yc)
