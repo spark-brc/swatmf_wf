@@ -14,6 +14,9 @@ import csv
 from tqdm import tqdm
 from termcolor import colored
 import pyemu
+import flopy
+import math
+
 # from colorama import init
 # from colorama import Fore, Style
 
@@ -169,6 +172,136 @@ def init_setup(prj_dir, swatmfwd, swatwd):
         shutil.copy2(os.path.join(foward_path, 'forward_run.py'), os.path.join(main_opt_path, 'forward_run.py'))
         print(" '{}' file copied ...".format('forward_run.py') + colored(suffix, 'green'))
     os.chdir(main_opt_path)       
+
+
+def create_pp_tpl_files(
+    main_opt, mname, parNams, contributions, ranges, cellNums,
+    nuggets=None, maxpts_interp=30, num_threads=12, search_radius=None
+    ):
+    """
+    Create pilot point template files for PEST parameter estimation.
+    
+    Parameters can be provided as single values or lists. Single values will be
+    broadcast to all parameters.
+    
+    Parameters
+    ----------
+    main_opt : str
+        Path to model workspace
+    mname : str
+        MODFLOW model name
+    parNams : str or list of str
+        Parameter name(s)
+    contributions : float or list of float
+        Variogram contribution(s) in log scale
+    ranges : float or list of float
+        Variogram range(s)
+    cellNums : int or list of int
+        Grid cell spacing for pilot points
+    nuggets : float or list of float, optional
+        Variogram nugget(s), defaults to 0
+    maxpts_interp : int, optional
+        Maximum interpolation points
+    num_threads : int, optional
+        Number of threads for kriging
+    search_radius : float, optional
+        Search radius for kriging, defaults to 2/3 of model diagonal
+    """
+    
+    # Load model
+    m = flopy.modflow.Modflow.load(mname, model_ws=main_opt)
+    sr = pyemu.helpers.SpatialReference.from_namfile(
+        os.path.join(main_opt, mname),
+        delr=m.dis.delr.array, 
+        delc=m.dis.delc.array
+    )
+    
+    # Normalize parNams to list
+    if isinstance(parNams, str):
+        parNams = [parNams]
+    
+    n_pars = len(parNams)
+    
+    # Helper function to normalize inputs
+    def normalize_input(value, param_name):
+        """Convert single value or list to list matching number of parameters."""
+        if value is None:
+            return [0] * n_pars
+        elif isinstance(value, (int, float)):
+            return [value] * n_pars
+        elif isinstance(value, list):
+            if len(value) == 1:
+                return value * n_pars
+            elif len(value) == n_pars:
+                return value
+            else:
+                raise ValueError(
+                    f"{param_name} length ({len(value)}) doesn't match "
+                    f"number of parameters ({n_pars})"
+                )
+        else:
+            raise TypeError(
+                f"{param_name} must be a number or list, got {type(value)}"
+            )
+    
+    # Normalize all inputs to lists
+    contributions = normalize_input(contributions, "contributions")
+    ranges = normalize_input(ranges, "ranges")
+    cellNums = normalize_input(cellNums, "cellNums")
+    nuggets_list = normalize_input(nuggets, "nuggets")
+    
+    # Calculate default search radius if not provided
+    if search_radius is None:
+        model_width = m.dis.delc.get_value() * m.dis.ncol
+        model_height = m.dis.delr.get_value() * m.dis.nrow
+        diagonal_length = math.sqrt(model_width**2 + model_height**2)
+        search_radius = diagonal_length * 2/3
+        print(f"Using default search radius: {search_radius:.2f}")
+    
+    # Process each parameter
+    for parNam, cont, rg, cn, ng in zip(
+        parNams, contributions, ranges, cellNums, nuggets_list
+    ):
+        print(f"\nProcessing parameter: {parNam}")
+        print(f"  Contribution: {cont}, Range: {rg}, Cell spacing: {cn}, Nugget: {ng}")
+        
+        # Setup pilot points
+        prefix_dict = {0: [f"{parNam}"]}
+        df_pp = pyemu.pp_utils.setup_pilotpoints_grid(
+            ml=m,
+            prefix_dict=prefix_dict,
+            pp_dir=main_opt,
+            tpl_dir=main_opt,
+            every_n_cell=cn,
+            shapename=f'pp_{parNam}.shp'
+        )
+        
+        # Create geostatistical structure
+        v = pyemu.geostats.ExpVario(contribution=cont, a=rg)
+        gs = pyemu.geostats.GeoStruct(
+            variograms=v, 
+            nugget=ng, 
+            transform="log"
+        )
+        
+        # Setup kriging and calculate factors
+        pp_file = os.path.join(main_opt, f"{parNam}pp.dat")
+        ok = pyemu.geostats.OrdinaryKrige(gs, df_pp)
+        
+        df = ok.calc_factors_grid(
+            sr,
+            var_filename=f"{parNam}pp.var.ref",
+            minpts_interp=1,
+            maxpts_interp=maxpts_interp,
+            search_radius=search_radius,
+            verbose=False,  # Changed to False to reduce clutter
+            num_threads=num_threads
+        )
+        
+        ok.to_grid_factors_file(pp_file + ".fac")
+        print(f"  ✓ Pilot point files created for {parNam}")
+    print("\n✓ All pilot point files created successfully!")
+
 
 def extract_day_stf(channels, start_day, warmup, cali_start_day, cali_end_day):
     """extract a daily simulated streamflow from the output.rch file,
@@ -691,7 +824,7 @@ def swat_pars_to_template_file(tpl_file=None):
         tpl_file = model_in_file + ".tpl"
     df = pd.read_csv(
                         model_in_file,
-                        sep='\s+',
+                        sep=r'\s+',
                         # header=True,
                         # names=["parnam", "parval1"],
                         comment='#')
