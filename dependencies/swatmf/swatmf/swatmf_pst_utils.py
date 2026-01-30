@@ -492,7 +492,7 @@ def stf_obd_to_ins(srch_file, col_name, cal_start, cal_end, time_step=None):
 
     stf_obd = pd.read_csv(
                         stfobd_file,
-                        # sep='\t',
+                        # sep=r'\s+',
                         usecols=['date', col_name],
                         index_col=0,
                         parse_dates=True,
