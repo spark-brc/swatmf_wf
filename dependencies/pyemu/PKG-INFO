@@ -1,3 +1,43 @@
+Metadata-Version: 2.4
+Name: pyemu
+Version: 1.4.0
+Summary: pyEMU is a set of python modules for interfacing with PEST and PEST++
+Author-email: Jeremy White <jtwhite1000@gmail.com>, Mike Fienen <mnfienen@usgs.gov>, Brioch Hemmings <b.hemmings@gns.cri.nz>
+License-Expression: BSD-3-Clause
+Project-URL: documentation, https://pyemu.readthedocs.io/
+Project-URL: repository, https://github.com/pypest/pyemu
+Keywords: pest,pestpp
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Scientific/Engineering :: Hydrology
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: pandas
+Provides-Extra: optional
+Requires-Dist: flopy; extra == "optional"
+Requires-Dist: matplotlib; extra == "optional"
+Requires-Dist: pyshp; extra == "optional"
+Requires-Dist: scipy; extra == "optional"
+Requires-Dist: shapely; extra == "optional"
+Requires-Dist: jinja2; extra == "optional"
+Requires-Dist: pypestutils; extra == "optional"
+Provides-Extra: test
+Requires-Dist: coveralls; extra == "test"
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Requires-Dist: pytest-xdist; extra == "test"
+Requires-Dist: flaky; extra == "test"
+Requires-Dist: nbmake; extra == "test"
+Requires-Dist: modflow-devtools; extra == "test"
+Provides-Extra: docs
+Requires-Dist: pyemu[optional]; extra == "docs"
+Requires-Dist: sphinx<7.2; extra == "docs"
+Requires-Dist: sphinx-autoapi; extra == "docs"
+Requires-Dist: sphinx-rtd-theme>=1.3.0rc1; extra == "docs"
+Dynamic: license-file
+
 pyEMU
 =====
 
