@@ -6,6 +6,7 @@ flag,alias ,parnam,obj_type,chg_type,lb,ub,des
 0,,CN2,mgt,,35,98,SCS runoff curve number f
 0,,USLE_P,mgt,,0,1,USLE equation support pra
 0,,BIO_MIN,mgt,,0,5000,Minimum plant biomass for
+0,,FLOWMIN,mgt,,0,100,
 0,,SOL_ZMX,sol,,0,3500, Maximum rooting depth of soil profile.
 0,,ANION_EXCL,sol,,0.01,1, Fraction of porosity (void space) from which anions are excluded.
 0,,SOL_CRK,sol,,0,1,  Crack volume potential of soil.
@@ -75,7 +76,6 @@ flag,alias ,parnam,obj_type,chg_type,lb,ub,des
 0,,URBLU,hru,,0,10,
 0,,IRR,hru,,0,5,
 0,,IRRNO,hru,,0,5,
-0,,FLOWMIN,hru,,0,100,
 0,,DIVMAX,hru,,0,150,
 0,,FLOWFR,hru,,0,1,
 0,,DDRAIN,hru,,0,2000,
