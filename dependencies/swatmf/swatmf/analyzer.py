@@ -89,15 +89,9 @@ def all_seds(wd, sub_number, start_date, obd_nam, time_step=None):
     return tot_df
 
 
-def str_df(start_date, sub_number, time_step=None):
-    if time_step is None:
-        time_step = "D"
-        strobd_file = "swat_rch_day.obd"
-    else:
-        time_step = "M"
-        strobd_file = "swat_rch_mon.obd."
+def str_df(wd, start_date, sub_number, time_step=None):
     df = pd.read_csv(
-                os.path.join("output.rch"),
+                os.path.join(wd, "output.rch"),
                 sep=r'\s+',
                 skiprows=9,
                 usecols=[1, 3, 6],
@@ -110,6 +104,28 @@ def str_df(start_date, sub_number, time_step=None):
     df.index = pd.date_range(start_date, periods=len(df.str_sim), freq=time_step)
     
     return df
+
+
+def stf_sim_obd_df(wd, start_date, subnum, obd_col, time_step=None):
+    if time_step is None or time_step == "day":
+        strobd_file = "stf_day.obd.csv"
+    elif time_step == "month" or time_step == "M" or time_step == "mon":        
+        strobd_file = "stf_mon.obd.csv"
+    else:
+        raise ValueError("Invalid time_step value. Use 'D', 'M', 'day', or 'month'.")
+    
+    stf_df = str_df(wd, start_date, subnum, time_step)
+
+    stf_obd = pd.read_csv(
+                        os.path.join(wd, strobd_file), index_col=0, header=0,
+                        parse_dates=True,
+                        na_values=[-999, ""]
+                        )
+    stf_obd = stf_obd.loc[:, obd_col]
+
+    stf_sim_obd = pd.concat([stf_df, stf_obd], axis=1)
+    return stf_sim_obd
+
 
 
 
@@ -195,16 +211,13 @@ def str_plot(plot_df, prep=None): # NOTE: with precipitation data
     org_stat = plot_df.dropna()
     sim_org = org_stat.iloc[:, 0].to_numpy()
     obd_org = org_stat.iloc[:, 1].to_numpy()
-    df_nse = evaluator(nse, sim_org, obd_org)
-    df_rmse = evaluator(rmse, sim_org, obd_org)
-    df_pibas = evaluator(pbias, sim_org, obd_org)
-    r_squared = (
-        ((sum((obd_org - obd_org.mean())*(sim_org-sim_org.mean())))**2)/
-        ((sum((obd_org - obd_org.mean())**2)* (sum((sim_org-sim_org.mean())**2))))
-        )    
+    df_nse = objfns.nashsutcliffe(obd_org, sim_org)
+    df_rmse = objfns.rmse(obd_org, sim_org)
+    df_pibas = objfns.pbias(obd_org, sim_org)
+    r_squared = objfns.rsquared(obd_org, sim_org)
     ax.text(
         0.95, 0.05,
-        'NSE: {:.2f} | RMSE: {:.2f} | PBIAS: {:.2f} | R-Squared: {:.2f}'.format(df_nse[0], df_rmse[0], df_pibas[0], r_squared),
+        'NSE: {:.2f} | RMSE: {:.2f} | PBIAS: {:.2f} | R-Squared: {:.2f}'.format(df_nse, df_rmse, df_pibas, r_squared),
         horizontalalignment='right',fontsize=10,
         bbox=dict(facecolor='green', alpha=0.5),
         transform=ax.transAxes
@@ -224,13 +237,10 @@ def get_stats(df):
 
     sim = df_stat.iloc[:, 0].to_numpy()
     obd = df_stat.iloc[:, 1].to_numpy()
-    df_nse = evaluator(nse, sim, obd)
-    df_rmse = evaluator(rmse, sim, obd)
-    df_pibas = evaluator(pbias, sim, obd)
-    r_squared = (
-        ((sum((obd - obd.mean())*(sim-sim.mean())))**2)/
-        ((sum((obd - obd.mean())**2)* (sum((sim-sim.mean())**2))))
-        )
+    df_nse = objfns.nashsutcliffe(obd, sim)
+    df_rmse = objfns.rmse(obd, sim)
+    df_pibas = objfns.pbias(obd, sim)
+    r_squared = objfns.rsquared(obd, sim)
     return df_nse, df_rmse, df_pibas, r_squared
 
 
@@ -302,7 +312,7 @@ def str_plot_test(plot_df, cal_period=None, val_period=None):
     plt.show()
 
 
-
+# NOTE: this function is for APEX-MODFLOW
 def obds_df(strobd_file, wt_obd_file):
     str_obd = pd.read_csv(
                         strobd_file, sep=r'\s+', index_col=0, header=0,
@@ -350,6 +360,7 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
                         usecols = [3, 4],
                         index_col = 0,
                         names = ["grid_id", "mf_elev"],)
+    print(mf_obs.loc[int(grid_id), "mf_elev"])
     mfobd_df = pd.read_csv(
                         mfobd_file,
                         index_col=0,
@@ -363,7 +374,7 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
                         sep=r'\s+',
                         skiprows = 1,
                         names = grid_id_lst,)
-    output_wt = output_wt[str(grid_id)] - float(mf_obs.loc[int(grid_id)])
+    output_wt = output_wt[str(grid_id)] - float(mf_obs.loc[int(grid_id), "mf_elev"])
     output_wt.index = pd.date_range(start_date, periods=len(output_wt))
 
     if time_step == 'M':
@@ -386,12 +397,70 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
     #     output_wt = pd.concat([output_wt, mfobd_df[obd_nam], prep_df], axis=1)
     # else:
     #     output_wt = pd.concat([output_wt, mfobd_df[obd_nam]], axis=1)
-    output_wt = pd.concat([output_wt, mfobd_df[obd_nam]], axis=1)
+    output_wt = pd.concat([output_wt, mfobd_df.loc[:, obd_nam]], axis=1)
     output_wt = output_wt[output_wt[str(grid_id)].notna()]
-
+    print(output_wt.head())
     return output_wt       
 
+def dtw_sim_obd_plot(plot_df, prep=None): # NOTE: with precipitation data
 
+    colnams = plot_df.columns.tolist()
+    # plot
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.grid(True)
+    ax.plot(plot_df.index, plot_df.iloc[:, 0], label='Simulated', color='green', alpha=0.7)
+    ax.scatter(
+        plot_df.index, plot_df.iloc[:, 1], label='Observed',
+        # color='red',
+        facecolors="None", edgecolors='red',
+        # lw=1.5,
+        alpha=0.4,
+        # zorder=2,
+        )
+    # ax.plot(plot_df.index, plot_df.iloc[:, 1], color='red', alpha=0.4, zorder=2,)
+    
+    if prep:
+        ax2=ax.twinx()
+        ax2.bar(
+            plot_df.index, plot_df["prep"], label='Precipitation',
+            width=20,
+            color="blue", align='center', alpha=0.5, zorder=0)
+        ax2.set_ylabel("Precipitation $(mm)$",color="blue",fontsize=14)
+        ax2.invert_yaxis()
+        ax2.set_ylim(plot_df["prep"].max()*3, 0)
+        ax.set_ylabel("Stream Discharge $(m^3/day)$",fontsize=14)
+        ax2.tick_params(axis='y', labelsize=12)    
+    ax.margins(y=0.2)
+    ax.tick_params(axis='both', labelsize=12)
+    
+    # add stats
+    org_stat = plot_df.dropna()
+    sim_org = org_stat.iloc[:, 0].to_numpy()
+    obd_org = org_stat.iloc[:, 1].to_numpy()
+    df_nse = objfns.nashsutcliffe(obd_org, sim_org)
+    df_rmse = objfns.rmse(obd_org, sim_org)
+    df_pibas = objfns.pbias(obd_org, sim_org)
+    r_squared = objfns.rsquared(obd_org, sim_org)
+    ax.text(
+        0.95, 0.05,
+        'NSE: {:.2f} | RMSE: {:.2f} | PBIAS: {:.2f} | R-Squared: {:.2f}'.format(df_nse, df_rmse, df_pibas, r_squared),
+        horizontalalignment='right',fontsize=10,
+        bbox=dict(facecolor='green', alpha=0.5),
+        transform=ax.transAxes
+        )     
+    fig.tight_layout()
+    lines, labels = fig.axes[0].get_legend_handles_labels()
+    ax.legend(
+        lines, labels, loc = 'lower left', ncol=5,
+        # bbox_to_anchor=(0, 0.202),
+        fontsize=12)
+    # plt.legend()
+    plt.show()
+
+
+
+
+# NOTE: this function is for APEX-MODFLOW
 def wt_df(start_date, grid_id, obd_nam, time_step=None, prep_sub=None):
     
     if time_step is None:
@@ -2122,6 +2191,13 @@ if __name__ == '__main__':
     # mout = handler.SWATMFout(wd)
     # dtwdf = mout.get_static_gw()
     # print(dtwdf)
-    ###
-    wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\afterservice\\Re-calibration\\koki_rw_ies_20250805\\koki_rw_ies"
-    create_rels_objs(wd, "koki_zon_rw_ies.pst", iter_idx=10)
+    ### test for koki_rw_ies_20250805
+    # wd = "D:\\Projects\\Watersheds\\Koksilah\\analysis\\afterservice\\Re-calibration\\koki_rw_ies_20250805\\koki_rw_ies"
+    # create_rels_objs(wd, "koki_zon_rw_ies.pst", iter_idx=10)
+
+    ## test for hbasnet
+    prj_dir = "C:\\Users\\seonggpa\\Documents\\projects\\watersheds\\hbasnet_opt"
+    main_opt_path = os.path.join(prj_dir, 'main_opt')
+    os.chdir(main_opt_path)
+    sim_start_date = "01/01/2005"
+    dtw_df = dtw_df(sim_start_date, 5163, "gid5163")
