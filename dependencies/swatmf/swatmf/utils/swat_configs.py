@@ -358,6 +358,7 @@ def write_ext_files(param_df, dir_list, subbasins, hrus, exts, input_dir, output
                 data = f.readlines()
                 param_names = list(param.keys())
                 for param_name in param_names:
+                    # print(param_name)
                     c = 0
                     if var_list: 
                         #BUG: this is not working properly for SOIL_Z in SOIL_ZMX
