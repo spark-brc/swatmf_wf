@@ -502,7 +502,7 @@ def stf_obd_to_ins(srch_file, col_name, cal_start, cal_end, time_step=None):
 
     stf_sim = pd.read_csv(
                         srch_file,
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         names=["date", "stf_sim"],
                         index_col=0,
                         parse_dates=True)
@@ -563,7 +563,7 @@ def mf_obd_to_ins(wt_file, col_name, cal_start, cal_end, time_step="day"):
 
     wt_sim = pd.read_csv(
                         wt_file,
-                        delim_whitespace=True,
+                        sep=r'\s+',
                         names=["date", "stf_sim"],
                         index_col=0,
                         parse_dates=True)

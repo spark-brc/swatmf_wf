@@ -47,7 +47,13 @@ class SWATMFout(object):
     # scratches for QSWATMOD
     # read data first
     # stream discharge output.rch
-    def read_stf_obd(self, obd_file):
+    def read_stf_obd(self):
+        if self.iprint == 1:
+            obd_file = "stf_day.obd.csv"
+        elif self.iprint == 0:
+            obd_file = "stf_mon.obd.csv"
+        else:           
+            obd_file = "stf_year.obd.csv"
         return pd.read_csv(obd_file,
             index_col=0,
             header=0,
@@ -93,8 +99,8 @@ class SWATMFout(object):
             index_col=0
         )        
 
-    def get_stf_sim_obd(self, obd_file, obd_col, subnum):
-        strObd = self.read_stf_obd(obd_file)
+    def get_stf_sim_obd(self, subnum, obd_col):
+        strObd = self.read_stf_obd()
         output_rch = self.read_output_rch_data()
         df = output_rch.loc[subnum]
         df = self.update_index(df)
@@ -212,10 +218,10 @@ class SWATMFout(object):
                 newline = f"l1 w w w w !{obdnam:^20s}!\n"
                 wf.write(newline)
 
-    def get_gw_obd(self, ts=None):
-        if ts is None:
+    def get_gw_obd(self, gwts=None):
+        if gwts is None:
             mfobd_file = "dtw_day.obd.csv"
-        if ts == "month":
+        if gwts == "month":
             mfobd_file = "dtw_mon.obd.csv"
         return pd.read_csv(
                         mfobd_file,
@@ -224,8 +230,8 @@ class SWATMFout(object):
                         parse_dates=True,
                         na_values=[-999, ""])
     
-    def get_gw_sim_obd(self, grid_id, obd_col, ts=None, dtw_format=True):
-        gw_obd = self.get_gw_obd(obd_col, ts=ts)
+    def get_gw_sim_obd(self, grid_id, obd_col, gwts=None, dtw_format=True):
+        gw_obd = self.get_gw_obd(obd_col, gwts=gwts)
         gw_sim = self.get_gw_sim(grid_id, dtw_format=dtw_format)
         df =  pd.concat([gw_sim, gw_obd], axis=1).dropna()
         return df

@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
 from swatmf import handler, objfns
 import pyemu
+# from swatmf.handler import SWATMFout
 # from swatmf.handler import Paddy
 
 
@@ -399,7 +400,6 @@ def dtw_df(start_date, grid_id, obd_nam, time_step=None):
     #     output_wt = pd.concat([output_wt, mfobd_df[obd_nam]], axis=1)
     output_wt = pd.concat([output_wt, mfobd_df.loc[:, obd_nam]], axis=1)
     output_wt = output_wt[output_wt[str(grid_id)].notna()]
-    print(output_wt.head())
     return output_wt       
 
 def dtw_sim_obd_plot(plot_df, prep=None): # NOTE: with precipitation data
@@ -1393,7 +1393,7 @@ def format_axes(fig):
 
 
 # std plot
-def output_std_plot(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
+def c(axes, dff, viz_ts, widthExg=1, cutcolor='k'):
     # fig, axes = plt.subplots(
     #     nrows=4, figsize=(14, 7), sharex=True,
     #     gridspec_kw={
@@ -2142,6 +2142,39 @@ def plot_violin2(wd, inf, cropBHU, month):
     lastfolder = os.path.basename(os.path.normpath(wd))
     plt.savefig(os.path.join(wd, f'HUI_{lastfolder}.png'), dpi=300, bbox_inches="tight")
     plt.show()
+
+def plot_model_performance(
+        wd, subnum, stf_obd_col, grid_id, dtw_obd_col, 
+        viz_ts="month"):
+    m1 = SWATMFout(wd)
+    wb_df = m1.get_std_data()
+    gw_df = m1.get_gw_sim()
+    gw_obd = m1.get_gw_obd()
+
+    stf_sim_obd = m1.get_stf_sim_obd(subnum, stf_obd_col)
+    ## finish here.
+
+    fig = plt.figure(figsize=(10,10))
+    subplots = fig.subfigures(3, 1, height_ratios=[0.3, 0.3, 0.4])
+    ax0 = subplots[0].subplots(1,1)
+    ax1 = subplots[1].subplots(1,1, sharey=False, 
+                    gridspec_kw={
+                    'wspace': 0.0
+                    })
+    ax3 = subplots[2].subplots(4,1, sharex=True, height_ratios=[0.2, 0.2, 0.4, 0.2])
+
+    # streamflow
+    ax0.set_ylabel(r'Stream Discharge $[m^3/s]$', fontsize=8)
+    ax0.tick_params(axis='both', labelsize=8)
+    analyzer.plot_stf_sim_obd(ax0, stf_sim_obd, stf_obd)
+    analyzer.plot_gw_sim_obd(ax1, gw_df, "sim_g14294lyr1", gw_obd, "dtw14294")
+    analyzer.output_std_plot(ax3, wb_df, viz_ts)
+    plt.suptitle("max", ha='left', va='top')
+    plt.show()
+
+
+
+
 
 
 '''
