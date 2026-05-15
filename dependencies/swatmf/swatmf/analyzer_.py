@@ -128,10 +128,6 @@ def stf_sim_obd_df(wd, start_date, subnum, obd_col, time_step=None):
     return stf_sim_obd
 
 
-
-
-
-
 def str_sim_obd(plot_df): # NOTE: temp for report
 
     fig, ax = plt.subplots(figsize=(10, 3))
